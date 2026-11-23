@@ -6,12 +6,13 @@ The canvas, these files, `GAME_PLAN.md` and the game are kept in sync both ways 
 
 **For now every board is a drawn mockup** (3D renders with the interface laid over them), with PT-BR copy. Once the game draws a screen, its board becomes a capture from the game (`npm run designs`, roadmap Phase 7): PT-BR here, English in `en/`. The text boards (10–13) stay hand-edited on the canvas.
 
-**Stale:** `11-Items.jpg` predates the rebase power-up added to the board on 22 Nov 2026, and `13-Floor.jpg` hasn't been exported. Listed in `TODO_FOR_YOU.md`.
+**Stale:** the canvas moved ahead of these exports: `01-Main.jpg`, `02-Lobby.jpg` (on 23 Nov also the seat switch), `07-Result.jpg` and `11-Items.jpg` (rebase); `13-Floor.jpg` hasn't been exported. Listed in `TODO_FOR_YOU.md`.
 
 | File | Canvas page | Board | What it shows |
 |---|---|---|---|
 | `01-Main.jpg` | Screens | 1 · Landing | The `<<<<<<< HEAD` title frame, the pitch, create room / join with code, the four branch tags |
 | `02-Lobby.jpg` | Screens | 2 · Lobby | Room code and copy link, four seats (branch, name, state), map, sprint length, the status terminal, start / leave |
+| `02b-Lobby-1v1.jpg` | Screens | 2b · Lobby: 1v1 (vagas fechadas) | **A capture from the game** (`npm run designs -- 02b`; English in `en/`): the offline lobby set up for a 1v1, two seats closed, the host's bot / closed switch |
 | `03-Match.jpg` | Screens | 3 · Match | The arena from above: timer, territory bar, room, name tags, pending push, blast gain, power-ups on the floor, commit log, pushes and range |
 | `04-Blast.jpg` | Screens | 4 · Force-push (replay) | The close camera of the end-of-match highlight: the blast, the push's diff |
 | `05-Reverted.jpg` | Screens | 5 · Reverted | Desaturated arena, `$ git revert main`, the countdown, nobody is eliminated |
