@@ -1,0 +1,449 @@
+/**
+ * The client app: which screen is up, the session, the fixed 20-ticks-a-second loop, and the
+ * test hooks. Game rules live in src/core; this only wires input, session, renderer and DOM.
+ *
+ * URL options (never linked from the UI): `?room=FRI-1758` (join form filled in), `?offline=1`
+ * (straight into a match against bots), `&seed=N`, `&bots=4` (watch an all-bot match),
+ * `&minutes=2|3|5`, `?test=1` (exposes `window.__mc`), `&speed=N`, `&lag=` and `&jitter=` (online).
+ */
+import { TICKS_PER_SECOND } from "../content/rules";
+import { SITE_URL } from "../content/site";
+import type { Locale } from "../content/i18n";
+import { parseRoomCode } from "../core/room-code";
+import { scoreMatch } from "../core/score";
+import { shareData } from "../core/share";
+import { cleanName } from "../core/names";
+import type { GameState } from "../core/state";
+import { el } from "./dom";
+import { shareText } from "./format";
+import { Hud } from "./hud";
+import { getLocale, setLocale, t } from "./i18n";
+import { bindKeyboard, InputState } from "./input";
+import type { ArenaRenderer } from "./render3d";
+import { prNumberFor, renderLanding, renderLobby, renderMenu, renderResult } from "./screens";
+import { cryptoRandom, LocalSession, type Session } from "./session";
+import { browserStore, loadName, saveLocale, saveName } from "./store";
+import { buildTouchControls, hasTouch } from "./touch";
+
+const TICK_MS = 1000 / TICKS_PER_SECOND;
+
+export type AppOptions = {
+  readonly params: URLSearchParams;
+  /** Opens an online session, or null when there's no room server (offline build). */
+  readonly connect: ((code: string | null, name: string) => Session | null) | null;
+};
+
+type ScreenKind = "landing" | "lobby" | "match" | "result";
+
+type TestHooks = {
+  play(inputs: readonly number[]): void;
+  state(): GameState | null;
+  paused: boolean;
+  seat(): number;
+  screen(): ScreenKind;
+};
+
+function intParam(params: URLSearchParams, key: string): number | null {
+  const v = params.get(key);
+  if (v === null || !/^-?\d{1,10}$/.test(v)) return null;
+  return Number(v);
+}
+
+export class App {
+  private readonly root: HTMLElement;
+  private readonly canvas: HTMLCanvasElement;
+  private readonly screenLayer: HTMLElement;
+  private readonly hudLayer: HTMLElement;
+  private readonly input = new InputState();
+  private readonly store = browserStore();
+  private readonly options: AppOptions;
+  private readonly test: boolean;
+  private readonly speed: number;
+  private readonly reducedMotion: boolean;
+  private readonly touch = hasTouch();
+  private session: Session | null = null;
+  private renderer: ArenaRenderer | null = null;
+  private rendererFailed = false;
+  private hud: Hud | null = null;
+  private screen: ScreenKind = "landing";
+  private shownLobby: unknown = null;
+  private menu: HTMLElement | null = null;
+  private copied = "";
+  private acc = 0;
+  private last = 0;
+  private scripted: number[] = [];
+  private paused = false;
+  private matchSeed = -1;
+  private offlineNote = false;
+
+  constructor(root: HTMLElement, options: AppOptions) {
+    this.root = root;
+    this.options = options;
+    const p = options.params;
+    this.test = p.get("test") === "1";
+    this.speed = Math.min(20, Math.max(1, intParam(p, "speed") ?? 1));
+    this.reducedMotion =
+      globalThis.matchMedia?.("(prefers-reduced-motion: reduce)").matches ?? false;
+    this.canvas = el("canvas", { class: "arena", "aria-hidden": "true" });
+    this.hudLayer = el("div", { class: "hud-layer" });
+    this.screenLayer = el("div", { class: "screen-layer" });
+    root.replaceChildren(this.canvas, this.hudLayer, this.screenLayer);
+    bindKeyboard(window, this.input, () => this.toggleMenu());
+    window.addEventListener("resize", () => this.resize());
+    if (this.test) this.exposeHooks();
+  }
+
+  start(): void {
+    const p = this.options.params;
+    if (p.get("offline") === "1") this.practice(loadName(this.store));
+    else this.showLanding();
+    this.resize();
+    requestAnimationFrame((now) => {
+      this.last = now;
+      this.frame(now);
+    });
+  }
+
+  // ----- screens -----------------------------------------------------------------------------
+
+  private toggleLocale = (): void => {
+    const next: Locale = getLocale() === "en" ? "pt-BR" : "en";
+    setLocale(next);
+    saveLocale(this.store, next);
+    document.documentElement.lang = next;
+    document.title = t("meta.title");
+    this.shownLobby = null;
+    this.rebuildHud();
+    this.renderScreen(true);
+    if (this.menu) {
+      this.closeMenu();
+      this.toggleMenu();
+    }
+    this.root.querySelector<HTMLButtonElement>("[data-testid=lang]")?.focus();
+  };
+
+  private showLanding(): void {
+    this.screen = "landing";
+    this.renderScreen(true);
+  }
+
+  private renderScreen(force = false): void {
+    const client = this.session?.client;
+    let next: ScreenKind = "landing";
+    if (client) {
+      const phase = client.lobby?.phase ?? "lobby";
+      if (phase === "playing" && client.confirmed) next = "match";
+      else if (phase === "result" && client.confirmed) next = "result";
+      else next = "lobby";
+    }
+    const lobby = client?.lobby ?? null;
+    if (!force && next === this.screen && lobby === this.shownLobby) return;
+    const entering = next !== this.screen;
+    this.screen = next;
+    this.shownLobby = lobby;
+    document.body.dataset.screen = next;
+
+    if (next === "match" && entering) this.enterMatch();
+    if (next !== "match" && next !== "result") this.leaveMatchView();
+
+    switch (next) {
+      case "landing":
+        this.screenLayer.replaceChildren(
+          renderLanding(
+            {
+              onCreate: (name) => this.create(name),
+              onJoin: (code, name) => this.join(code, name),
+              onPractice: (name) => this.practice(name),
+              onToggleLocale: this.toggleLocale,
+            },
+            {
+              name: loadName(this.store),
+              offline: this.offlineNote,
+              code: parseRoomCode(this.options.params.get("room")),
+            },
+          ),
+        );
+        break;
+      case "lobby":
+        if (!client || !lobby) {
+          this.screenLayer.replaceChildren(
+            el("p", { class: "connecting", role: "status" }, t("connection.connecting")),
+          );
+          break;
+        }
+        this.screenLayer.replaceChildren(
+          renderLobby(
+            lobby,
+            client.seat,
+            {
+              onReady: (ready) => client.send({ t: "ready", ready }),
+              onSettings: (mapId, minutes) => client.send({ t: "settings", mapId, minutes }),
+              onStart: () => client.send({ t: "start" }),
+              onLeave: () => this.leave(),
+              onCopyLink: () => this.copyLink(),
+            },
+            { offline: this.session!.offline, copied: this.copied },
+          ),
+        );
+        break;
+      case "match":
+        this.screenLayer.replaceChildren();
+        break;
+      case "result": {
+        const s = client!.confirmed!;
+        const result = scoreMatch(s);
+        const code = this.session!.code;
+        const text = shareText(shareData(result, s, code ?? t("hud.offline"), client!.seat));
+        this.screenLayer.replaceChildren(
+          renderResult(
+            result,
+            lobby,
+            client!.seat,
+            prNumberFor(code, s.seed),
+            {
+              onRematch: () => client!.send({ t: "rematch" }),
+              onChangeMap: () => client!.send({ t: "lobby" }),
+              onShare: () => this.copy(text, t("result.copied")),
+            },
+            { shareText: text, copied: this.copied, offline: this.session!.offline },
+          ),
+        );
+        break;
+      }
+    }
+  }
+
+  // ----- sessions ----------------------------------------------------------------------------
+
+  private open(session: Session, name: string): void {
+    this.session?.close();
+    this.session = session;
+    saveName(this.store, cleanName(name));
+    session.onStatus = () => this.renderScreen(true);
+    this.renderScreen(true);
+  }
+
+  private practice(name: string): void {
+    const p = this.options.params;
+    const seed = intParam(p, "seed");
+    let first = true;
+    const random = () => {
+      if (first && seed !== null) {
+        first = false;
+        return seed >>> 0;
+      }
+      return cryptoRandom();
+    };
+    const watch = p.get("bots") === "4";
+    const session = new LocalSession(cleanName(name), random, watch);
+    const minutes = intParam(p, "minutes");
+    if (watch) session.startWatching();
+    else {
+      if (minutes) session.client.send({ t: "settings", mapId: "open-space", minutes });
+      session.client.send({ t: "start" });
+    }
+    this.open(session, name);
+  }
+
+  private create(name: string): void {
+    const session = this.options.connect?.(null, cleanName(name)) ?? null;
+    if (!session) {
+      // No room server: the same lobby, offline, bots in the other seats.
+      this.offlineNote = true;
+      const local = new LocalSession(cleanName(name), cryptoRandom);
+      this.open(local, name);
+      return;
+    }
+    this.open(session, name);
+  }
+
+  private join(code: string, name: string): void {
+    const session = this.options.connect?.(code, cleanName(name)) ?? null;
+    if (!session) {
+      this.offlineNote = true;
+      this.showLanding();
+      return;
+    }
+    this.open(session, name);
+  }
+
+  private leave(): void {
+    this.session?.client.send({ t: "leave" });
+    this.session?.close();
+    this.session = null;
+    this.closeMenu();
+    this.leaveMatchView();
+    const url = new URL(location.href);
+    url.searchParams.delete("room");
+    history.replaceState(null, "", url);
+    this.showLanding();
+  }
+
+  private copyLink(): void {
+    const code = this.session?.code;
+    if (!code) return;
+    this.copy(`${SITE_URL}/?room=${code}`, t("lobby.copied"));
+  }
+
+  private copy(text: string, done: string): void {
+    const finish = (ok: boolean) => {
+      this.copied = ok ? done : `${t("lobby.copyFallback")} ${text}`;
+      this.renderScreen(true);
+      setTimeout(() => {
+        this.copied = "";
+      }, 4000);
+    };
+    if (navigator.clipboard?.writeText)
+      navigator.clipboard.writeText(text).then(
+        () => finish(true),
+        () => finish(false),
+      );
+    else finish(false);
+  }
+
+  // ----- match view --------------------------------------------------------------------------
+
+  private async ensureRenderer(): Promise<ArenaRenderer | null> {
+    if (this.renderer || this.rendererFailed) return this.renderer;
+    try {
+      const { ArenaRenderer } = await import("./render3d");
+      this.renderer = new ArenaRenderer(this.canvas);
+      this.resize();
+    } catch {
+      this.rendererFailed = true;
+    }
+    return this.renderer;
+  }
+
+  private enterMatch(): void {
+    void this.ensureRenderer();
+    this.input.clear();
+    this.rebuildHud();
+  }
+
+  private rebuildHud(): void {
+    this.hud?.dispose();
+    this.hud = null;
+    this.hudLayer.replaceChildren();
+    const client = this.session?.client;
+    if (!client || (this.screen !== "match" && this.screen !== "result")) return;
+    this.hud = new Hud(this.hudInfo(), () => this.toggleMenu());
+    this.hudLayer.append(this.hud.root);
+    if (this.touch && client.seat >= 0) this.hudLayer.append(buildTouchControls(this.input));
+  }
+
+  private hudInfo() {
+    const client = this.session!.client;
+    return {
+      code: this.session!.code,
+      names: client.lobby?.seats.map((s) => (s.kind === "human" ? s.name : "")) ?? [],
+      seat: client.seat,
+      touch: this.touch,
+      ping: this.session!.ping(),
+    };
+  }
+
+  private leaveMatchView(): void {
+    this.hud?.dispose();
+    this.hud = null;
+    this.hudLayer.replaceChildren();
+    document.body.classList.remove("is-reverted");
+  }
+
+  private toggleMenu(): void {
+    if (this.menu) return this.closeMenu();
+    if (this.screen !== "match") return;
+    this.menu = renderMenu(
+      () => this.closeMenu(),
+      () => this.leave(),
+      this.toggleLocale,
+    );
+    this.root.append(this.menu);
+  }
+
+  private closeMenu(): void {
+    this.menu?.remove();
+    this.menu = null;
+  }
+
+  private resize(): void {
+    const w = window.innerWidth;
+    const h = window.innerHeight;
+    this.renderer?.resize(w, h);
+  }
+
+  // ----- loop --------------------------------------------------------------------------------
+
+  private frame(now: number): void {
+    const dt = Math.min(0.25, (now - this.last) / 1000);
+    this.last = now;
+    const session = this.session;
+    const client = session?.client;
+    if (session && client) {
+      if (!this.paused) {
+        this.acc += dt * 1000 * this.speed;
+        let steps = 0;
+        while (this.acc >= TICK_MS && steps < 40) {
+          this.acc -= TICK_MS;
+          steps++;
+          const bits = this.scripted.length ? this.scripted.shift()! : this.input.sample();
+          session.tick(bits);
+        }
+        if (steps >= 40) this.acc = 0;
+      }
+      const s = client.confirmed;
+      if (s && s.seed !== this.matchSeed) {
+        this.matchSeed = s.seed;
+        if (this.renderer) this.renderer.setMatch(s);
+        this.rebuildHud();
+      }
+      if (client.events.length && s) {
+        const events = client.events.splice(0);
+        this.hud?.onEvents(events, s.seed, s.tick, client.seat);
+        this.renderer?.onEvents(events, this.reducedMotion);
+      }
+      this.renderScreen();
+      if (
+        s &&
+        client.previous &&
+        client.predicted &&
+        this.renderer &&
+        (this.screen === "match" || this.screen === "result")
+      ) {
+        const view = {
+          confirmed: s,
+          previous: client.previous,
+          predicted: client.predicted,
+          seat: client.seat,
+          alpha: Math.min(1, this.acc / TICK_MS),
+          reducedMotion: this.reducedMotion,
+        };
+        this.renderer.draw(view, dt, s.tick + view.alpha);
+        this.hud?.update(s, client.predicted, this.hudInfo(), this.renderer);
+      }
+    }
+    requestAnimationFrame((t2) => this.frame(t2));
+  }
+
+  // ----- test hooks --------------------------------------------------------------------------
+
+  private exposeHooks(): void {
+    const hooks: TestHooks = {
+      play: (inputs) => {
+        this.scripted.push(...inputs.map((b) => b & 31));
+      },
+      state: () => this.session?.client.confirmed ?? null,
+      get paused() {
+        return app.paused;
+      },
+      set paused(v: boolean) {
+        app.paused = v;
+      },
+      seat: () => this.session?.client.seat ?? -1,
+      screen: () => this.screen,
+    };
+    // eslint-disable-next-line @typescript-eslint/no-this-alias
+    const app = this;
+    (window as unknown as { __mc: TestHooks }).__mc = hooks;
+  }
+}

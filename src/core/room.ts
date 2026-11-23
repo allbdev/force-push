@@ -232,11 +232,7 @@ export class Room {
     if (seat < 0) seat = this.seats.findIndex((s) => s.kind === "bot");
     if (seat < 0) {
       // Full of people: watch instead (spectator).
-      this.watchers.add(clientId);
-      this.send(clientId, { t: "welcome", seat: -1, token: "" });
-      this.send(clientId, { t: "lobby", lobby: this.lobbyView() });
-      if (this.game && this.match)
-        this.send(clientId, { t: "snapshot", match: this.match, state: this.game });
+      this.watch(clientId);
       return;
     }
     const s = this.seats[seat]!;
@@ -254,6 +250,15 @@ export class Room {
     this.send(clientId, { t: "welcome", seat, token: s.token });
     this.broadcastLobby();
     if (this.game && this.match && this.phaseValue !== "lobby")
+      this.send(clientId, { t: "snapshot", match: this.match, state: this.game });
+  }
+
+  /** Joins as a spectator: sees everything, plays nothing. */
+  watch(clientId: string): void {
+    this.watchers.add(clientId);
+    this.send(clientId, { t: "welcome", seat: -1, token: "" });
+    this.send(clientId, { t: "lobby", lobby: this.lobbyView() });
+    if (this.game && this.match)
       this.send(clientId, { t: "snapshot", match: this.match, state: this.game });
   }
 

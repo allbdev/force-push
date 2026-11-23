@@ -1,4 +1,5 @@
 import { DEFAULT_LOCALE, isLocale, type Locale } from "../content/i18n";
+import { cleanName } from "../core/names";
 
 /**
  * Per-player conveniences in localStorage, always behind try/catch: storage can be missing,
@@ -6,7 +7,11 @@ import { DEFAULT_LOCALE, isLocale, type Locale } from "../content/i18n";
  */
 export type KeyValueStore = Pick<Storage, "getItem" | "setItem">;
 
-const KEYS = { locale: "force-push:locale" } as const;
+const KEYS = {
+  locale: "force-push:locale",
+  name: "force-push:name",
+  token: "force-push:token:",
+} as const;
 
 /** The browser's storage, or null when touching it throws (private mode, blocked cookies). */
 export function browserStore(): KeyValueStore | null {
@@ -49,4 +54,24 @@ export function loadLocale(store: KeyValueStore | null, languages: readonly stri
 
 export function saveLocale(store: KeyValueStore | null, locale: Locale): void {
   write(store, KEYS.locale, locale);
+}
+
+/** The last name used, cleaned again on the way out (storage may hold anything). */
+export function loadName(store: KeyValueStore | null): string {
+  return cleanName(read(store, KEYS.name));
+}
+
+export function saveName(store: KeyValueStore | null, name: string): void {
+  write(store, KEYS.name, cleanName(name));
+}
+
+/** The rejoin token for a room, so a dropped player gets their seat back. */
+export function loadToken(store: KeyValueStore | null, code: string): string {
+  const v = read(store, KEYS.token + code) ?? "";
+  return /^[a-z0-9]{1,64}$/.test(v) ? v : "";
+}
+
+export function saveToken(store: KeyValueStore | null, code: string, token: string): void {
+  if (/^[A-Z]{3}-\d{4}$/.test(code) && /^[a-z0-9]{1,64}$/.test(token))
+    write(store, KEYS.token + code, token);
 }
