@@ -8,6 +8,7 @@
 import { decodeClient, encodeServer, MAX_CLIENT_BYTES } from "../src/core/codec";
 import type { ServerMessage } from "../src/core/protocol";
 import { Room } from "../src/core/room";
+import { dailyId, parseDailyId } from "../src/core/daily";
 
 export interface HostSocket {
   send(data: string | Uint8Array): void;
@@ -91,6 +92,16 @@ export class RoomHost {
       return;
     }
     c.tokens -= 1;
+    // Daily maps cost a few bot simulations to build: only today's (give or take a day, for time
+    // zones) are accepted, so nobody can make the room generate thousands of them.
+    if (
+      msg.t === "settings" &&
+      parseDailyId(msg.mapId) &&
+      !this.recentDailies().includes(msg.mapId)
+    ) {
+      this.strike(id, "bad-message");
+      return;
+    }
     this.room.receive(id, msg);
   }
 
@@ -125,6 +136,14 @@ export class RoomHost {
       // Too far behind: drop the backlog rather than racing.
       this.clockStart = now - this.ticked * LIMITS.tickMs;
     }
+  }
+
+  /** The daily map ids for yesterday, today and tomorrow (UTC), by the host's clock. */
+  recentDailies(): string[] {
+    return [-1, 0, 1].map((d) => {
+      const day = new Date(this.now() + d * 86_400_000);
+      return dailyId(day.getUTCFullYear(), day.getUTCMonth() + 1, day.getUTCDate());
+    });
   }
 
   /** Nobody connected for `idleMs`: the room can close. */

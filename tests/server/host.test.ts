@@ -21,7 +21,7 @@ class FakeSocket implements HostSocket {
 }
 
 function setup() {
-  let now = 1_000_000;
+  let now = Date.UTC(2026, 10, 22, 12);
   let n = 1;
   const host = new RoomHost(
     "FRI-1758",
@@ -114,6 +114,19 @@ describe("room host", () => {
     expect(host.idle()).toBe(false);
     advance(1);
     expect(host.idle()).toBe(true);
+  });
+
+  it("only accepts the daily map for dates around today", () => {
+    const { host } = setup();
+    const a = new FakeSocket();
+    const id = host.connect(a)!;
+    host.message(id, wire({ t: "join", name: "", token: "" }));
+    const [, today] = host.recentDailies();
+    host.message(id, wire({ t: "settings", mapId: today!, minutes: 3 }));
+    expect(a.last("lobby")!.lobby.mapId).toBe(today);
+    host.message(id, wire({ t: "settings", mapId: "daily-20990101", minutes: 3 }));
+    expect(a.last("lobby")!.lobby.mapId).toBe(today);
+    expect(a.last("error")!.code).toBe("bad-message");
   });
 
   it("ignores messages from unknown connections", () => {
