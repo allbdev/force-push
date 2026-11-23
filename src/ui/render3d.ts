@@ -43,6 +43,7 @@ import {
   buildDesk,
   buildDeveloper,
   buildForcePush,
+  buildOffice,
   buildPowerUp,
   buildRack,
   material,
@@ -146,6 +147,7 @@ export class ArenaRenderer {
     ground.position.set(s.width / 2, -0.06, s.height / 2);
     ground.receiveShadow = true;
     this.world.add(ground);
+    this.world.add(buildOffice(s.width, s.height));
 
     // A low wall around the floor.
     const wallMat = material("#d9dde5", { roughness: 0.6 });
@@ -214,7 +216,8 @@ export class ArenaRenderer {
     });
     this.lastPoint = s.players.map((p) => playerPoint(p));
 
-    const extent = Math.max(s.width, s.height) / 2 + 3;
+    // Wide enough for the desks beside the arena to drop their shadows too.
+    const extent = Math.max(s.width, s.height) / 2 + 7;
     const cam = this.sun.shadow.camera;
     cam.left = -extent;
     cam.right = extent;

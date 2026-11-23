@@ -6,6 +6,7 @@ export * from "./desk";
 export * from "./developer";
 export * from "./duck";
 export * from "./force-push";
+export * from "./office";
 export * from "./pixel-texture";
 export * from "./power-ups";
 export * from "./rack";
