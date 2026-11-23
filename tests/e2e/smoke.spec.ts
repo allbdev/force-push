@@ -107,3 +107,22 @@ test("the landing can be used with the keyboard alone", async ({ page, browserNa
   }
   expect(order).toEqual(expect.arrayContaining(["lang", "name", "create", "join", "practice"]));
 });
+
+test("link previews have a title, a description in both languages and the image", async ({
+  page,
+  request,
+}) => {
+  await open(page, "/");
+  await expect(page.locator('meta[property="og:image"]')).toHaveAttribute("content", /og\.jpg$/);
+  await expect(page.locator('meta[property="og:description"]')).toHaveAttribute(
+    "content",
+    /turf war.*Guerra de território/,
+  );
+  await expect(page.locator('meta[property="og:locale:alternate"]')).toHaveAttribute(
+    "content",
+    "pt_BR",
+  );
+  const img = await request.get("/og.jpg");
+  expect(img.status()).toBe(200);
+  expect(img.headers()["content-type"]).toContain("image/jpeg");
+});
