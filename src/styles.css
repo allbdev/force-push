@@ -1,0 +1,185 @@
+/* Force Push. Tokens from GAME_PLAN.md §10 and the canvas page "Art direction": a desk-toy office
+   with a code editor laid over it. Colour never carries meaning alone: every tag has the branch
+   name, every diff its sign. */
+
+:root {
+  --ground: #14151b;
+  --deep: #0b0c10;
+  --panel: rgba(20, 21, 27, 0.93);
+  --line: #30333f;
+  --line-strong: #5a5f70;
+  --text: #e6e8ee;
+  --muted: #aab0bf;
+  --add: #3fb950;
+  --on-add: #08130b;
+  --remove: #ff7b72;
+  --main: #3f8cff;
+  --feature: #ff9a1f;
+  --hotfix: #ff4f93;
+  --dev: #19c3a6;
+  --on-branch: #0d0e12;
+  --sans: "Space Grotesk", system-ui, sans-serif;
+  --mono: "JetBrains Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+  color-scheme: dark;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  min-height: 100%;
+  background: var(--ground);
+  color: var(--text);
+  font-family: var(--sans);
+  -webkit-text-size-adjust: 100%;
+}
+
+#app {
+  min-height: 100dvh;
+}
+
+button {
+  font: inherit;
+  color: inherit;
+}
+
+:focus-visible {
+  outline: 2px solid var(--text);
+  outline-offset: 3px;
+}
+
+.landing {
+  position: relative;
+  max-width: 1120px;
+  margin: 0 auto;
+  padding: clamp(32px, 8vh, 96px) clamp(20px, 6vw, 88px);
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.marker {
+  margin: 0;
+  font-family: var(--mono);
+  font-size: clamp(14px, 1.6vw, 20px);
+}
+
+.marker-ours {
+  color: var(--add);
+}
+
+.marker-theirs {
+  color: var(--remove);
+}
+
+.title {
+  margin: 0;
+  font-size: clamp(64px, 11vw, 136px);
+  font-weight: 700;
+  line-height: 0.95;
+  letter-spacing: -0.02em;
+}
+
+.pitch {
+  margin: 8px 0 0;
+  max-width: 34em;
+  font-size: clamp(18px, 2.1vw, 26px);
+  line-height: 1.45;
+}
+
+.pitch code {
+  font-family: var(--mono);
+  color: var(--add);
+}
+
+.soon {
+  margin: 0;
+  max-width: 34em;
+  padding: 12px 16px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--panel);
+  font-family: var(--mono);
+  font-size: 15px;
+  color: var(--muted);
+}
+
+.facts {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px 16px;
+}
+
+.facts p {
+  margin: 0;
+  font-family: var(--mono);
+  font-size: 14px;
+  color: var(--muted);
+}
+
+.tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.tag {
+  padding: 3px 9px;
+  border-radius: 5px;
+  font-family: var(--mono);
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--on-branch);
+}
+
+.tag-main {
+  background: var(--main);
+}
+.tag-feature {
+  background: var(--feature);
+}
+.tag-hotfix {
+  background: var(--hotfix);
+}
+.tag-dev {
+  background: var(--dev);
+}
+
+.source {
+  align-self: flex-start;
+  font-family: var(--mono);
+  font-size: 14px;
+  color: var(--muted);
+}
+
+.source:hover {
+  color: var(--text);
+}
+
+.lang {
+  position: absolute;
+  top: 20px;
+  right: 20px;
+  min-width: 48px;
+  min-height: 44px;
+  padding: 0 12px;
+  border: 1px solid var(--line-strong);
+  border-radius: 8px;
+  background: var(--panel);
+  font-family: var(--mono);
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.lang:hover {
+  border-color: var(--text);
+}
