@@ -39,6 +39,8 @@ export type ClientMessage =
   | { readonly t: "rematch" }
   | { readonly t: "lobby" }
   | { readonly t: "leave" }
+  /** Asks for a snapshot (after a hash mismatch). */
+  | { readonly t: "sync" }
   | { readonly t: "ping"; readonly id: number };
 
 export type MatchStart = {

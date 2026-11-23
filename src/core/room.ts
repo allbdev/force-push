@@ -163,6 +163,10 @@ export class Room {
       case "leave":
         this.vacate(seat, true);
         return;
+      case "sync":
+        if (this.game && this.match)
+          this.send(clientId, { t: "snapshot", match: this.match, state: this.game });
+        return;
     }
   }
 
