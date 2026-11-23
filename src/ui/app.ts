@@ -135,7 +135,7 @@ export class App {
     const p = this.options.params;
     const replayParam = p.get("replay");
     if (replayParam !== null) this.watchReplay(replayParam);
-    else if (p.get("offline") === "1") this.practice(loadName(this.store));
+    else if (p.get("offline") === "1") this.practice(loadName(this.store), true);
     else this.showLanding();
     this.resize();
     requestAnimationFrame((now) => {
@@ -208,7 +208,7 @@ export class App {
             {
               onCreate: (name) => this.create(name),
               onJoin: (code, name) => this.join(code, name),
-              onPractice: (name) => this.practice(name),
+              onPractice: (name) => this.practice(name, false),
               onToggleLocale: this.toggleLocale,
             },
             {
@@ -256,6 +256,7 @@ export class App {
                 client.send({ t: "settings", mapId, minutes });
               },
               onStart: () => client.send({ t: "start" }),
+              onSeat: (seat, closed) => client.send({ t: "seat", seat, closed }),
               onLeave: () => this.leave(),
               onCopyLink: () => this.copyLink(),
               onPickMap: () => {
@@ -367,7 +368,11 @@ export class App {
     this.renderScreen(true);
   }
 
-  private practice(name: string): void {
+  /**
+   * Against bots, in the page. From the landing it opens the offline lobby first (seats can be
+   * closed there, for a 1v1 against one bot); the `?offline=1` test URL starts at once.
+   */
+  private practice(name: string, startNow: boolean): void {
     const p = this.options.params;
     const seed = intParam(p, "seed");
     let first = true;
@@ -382,7 +387,7 @@ export class App {
     const session = new LocalSession(cleanName(name), random, watch);
     const minutes = intParam(p, "minutes");
     if (watch) session.startWatching();
-    else {
+    else if (startNow) {
       if (minutes) session.client.send({ t: "settings", mapId: "open-space", minutes });
       session.client.send({ t: "start" });
     }

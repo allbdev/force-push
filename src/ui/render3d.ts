@@ -30,7 +30,7 @@ import { FLOOR_PATTERNS } from "../content/floor-patterns";
 import { POWER_UPS } from "../content/power-ups";
 import { RULES } from "../content/rules";
 import { BOX, FROZEN, RACK } from "../core/map";
-import type { GameEvent, GameState } from "../core/state";
+import { isOpen, type GameEvent, type GameState } from "../core/state";
 import { closeFraming, followFraming, isPortrait, overviewFraming, type Framing } from "./camera";
 import { patternTexture } from "./floor-texture";
 import {
@@ -190,6 +190,8 @@ export class ArenaRenderer {
       this.world.add(rack);
     }
     s.desks.forEach((d, seat) => {
+      // A closed seat has nobody at its desk, so there's no desk.
+      if (!isOpen(s.players[seat]!)) return;
       const x = d % s.width;
       const y = Math.floor(d / s.width);
       const desk = buildDesk(BRANCHES[seat]!);
@@ -410,6 +412,11 @@ export class ArenaRenderer {
       const dev = this.developers[seat]!;
       const own = seat === view.seat;
       const src = own ? predicted.players[seat]! : p;
+      if (!isOpen(src)) {
+        dev.visible = false;
+        this.visible[seat] = false;
+        return;
+      }
       let point: Point;
       if (own) {
         // Smooth the prediction toward its target so corrections don't snap.

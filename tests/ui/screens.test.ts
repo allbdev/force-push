@@ -111,6 +111,7 @@ describe("lobby (board 2)", () => {
       onLeave: vi.fn(),
       onCopyLink: vi.fn(),
       onPickMap: vi.fn(),
+      onSeat: vi.fn(),
     };
     const root = renderLobby(lobby(), 0, h, { offline: false, copied: "" });
     buttonsHaveNames(root);
@@ -131,6 +132,7 @@ describe("lobby (board 2)", () => {
       onLeave: vi.fn(),
       onCopyLink: vi.fn(),
       onPickMap: vi.fn(),
+      onSeat: vi.fn(),
     };
     const root = renderLobby(lobby(), 2, h, { offline: false, copied: "" });
     expect(root.querySelector("[data-testid=start]")).toBeNull();
@@ -138,6 +140,92 @@ describe("lobby (board 2)", () => {
     expect(h.onReady).toHaveBeenCalledWith(true);
     for (const b of root.querySelectorAll<HTMLButtonElement>(".lobby-settings button"))
       expect(b.disabled).toBe(true);
+  });
+});
+
+describe("closed seats (board 2b)", () => {
+  const handlers = () => ({
+    onReady: vi.fn(),
+    onSettings: vi.fn(),
+    onStart: vi.fn(),
+    onLeave: vi.fn(),
+    onCopyLink: vi.fn(),
+    onPickMap: vi.fn(),
+    onSeat: vi.fn(),
+  });
+  const duel = (): LobbyView =>
+    lobby({
+      seats: [
+        { kind: "human", name: "Vini", ready: false, away: false },
+        { kind: "human", name: "Bia", ready: true, away: false },
+        { kind: "closed", name: "", ready: false, away: false },
+        { kind: "empty", name: "", ready: false, away: false },
+      ],
+    });
+
+  it("gives the host a labelled bot / closed switch on empty seats only", () => {
+    setLocale("en");
+    const h = handlers();
+    const root = renderLobby(duel(), 0, h, { offline: false, copied: "" });
+    buttonsHaveNames(root);
+    expect(root.querySelectorAll(".seat-switch")).toHaveLength(2);
+    expect(root.querySelector("[data-testid=seat-1] .seat-switch")).toBeNull();
+    const group = root.querySelector("[data-testid=seat-3] .seat-switch")!;
+    expect(group.getAttribute("role")).toBe("group");
+    expect(group.getAttribute("aria-label")).toBe("Who plays dev");
+    const bot = root.querySelector<HTMLButtonElement>("[data-testid=switch-3-bot]")!;
+    expect(bot.getAttribute("aria-pressed")).toBe("true");
+    bot.click();
+    expect(h.onSeat).not.toHaveBeenCalled();
+    root.querySelector<HTMLButtonElement>("[data-testid=switch-3-closed]")!.click();
+    expect(h.onSeat).toHaveBeenCalledWith(3, true);
+    root.querySelector<HTMLButtonElement>("[data-testid=switch-2-bot]")!.click();
+    expect(h.onSeat).toHaveBeenCalledWith(2, false);
+  });
+
+  it("shows a closed seat as closed, to everyone, in both languages", () => {
+    setLocale("en");
+    const guest = renderLobby(duel(), 1, handlers(), { offline: false, copied: "" });
+    expect(guest.querySelectorAll(".seat-switch")).toHaveLength(0);
+    const seat = guest.querySelector("[data-testid=seat-2]")!;
+    expect(seat.classList.contains("is-closed")).toBe(true);
+    expect(seat.getAttribute("aria-label")).toBe("hotfix: closed, nobody plays here");
+    setLocale("pt-BR");
+    const pt = renderLobby(duel(), 1, handlers(), { offline: false, copied: "" });
+    expect(pt.querySelector("[data-testid=seat-2]")!.getAttribute("aria-label")).toBe(
+      "hotfix: fechada, ninguém joga aqui",
+    );
+    setLocale("en");
+  });
+
+  it("won't let the host close a seat that would leave fewer than two open", () => {
+    setLocale("en");
+    const lonely = lobby({
+      seats: [
+        { kind: "human", name: "Vini", ready: false, away: false },
+        { kind: "closed", name: "", ready: false, away: false },
+        { kind: "closed", name: "", ready: false, away: false },
+        { kind: "empty", name: "", ready: false, away: false },
+      ],
+    });
+    const root = renderLobby(lonely, 0, handlers(), { offline: true, copied: "" });
+    expect(root.querySelector(".lobby-head .hud-label")!.textContent).toBe(
+      "practice · you against the bots, nothing leaves this tab",
+    );
+    const close = root.querySelector<HTMLButtonElement>("[data-testid=switch-3-closed]")!;
+    expect(close.disabled).toBe(true);
+    expect(close.title).toBe("At least two seats stay open.");
+    expect(root.querySelector<HTMLButtonElement>("[data-testid=switch-1-bot]")!.disabled).toBe(
+      false,
+    );
+  });
+
+  it("has no switch once the sprint is on", () => {
+    const root = renderLobby({ ...duel(), phase: "playing" }, 0, handlers(), {
+      offline: false,
+      copied: "",
+    });
+    expect(root.querySelectorAll(".seat-switch")).toHaveLength(0);
   });
 });
 
@@ -149,6 +237,7 @@ describe("seat portraits (board 2)", () => {
     onLeave: vi.fn(),
     onCopyLink: vi.fn(),
     onPickMap: vi.fn(),
+    onSeat: vi.fn(),
   });
   const png = (n: number) => `data:image/png;base64,AAAA${n}`;
   const four = [png(0), png(1), png(2), png(3)];
@@ -240,6 +329,34 @@ describe("result (board 7)", () => {
     expect(first.textContent).toContain("60%");
     expect(first.textContent).toContain("you · merged");
     expect(root.querySelector("[data-testid=share]")!.textContent).toContain("FRI-1758");
+  });
+
+  it("shows only the open seats after a 1v1, and the bar adds up", () => {
+    setLocale("en");
+    const s = createMatch({
+      map: mapById("open-space")!,
+      seed: 1,
+      ticks: 10,
+      closed: 0b1010,
+    });
+    for (let i = 0; i < 10; i++) s.owner[i * 2] = i < 6 ? 3 : 1;
+    s.plus = [4, 0, 6, 0];
+    s.minus = [0, 0, 0, 0];
+    const root = renderResult(
+      scoreMatch(s),
+      lobby(),
+      0,
+      1758,
+      { onRematch: vi.fn(), onChangeMap: vi.fn(), onShare: vi.fn() },
+      { shareText: "", copied: "", offline: true },
+    );
+    const rows = [...root.querySelectorAll("tbody tr")];
+    expect(rows).toHaveLength(2);
+    expect(rows[0]!.textContent).toContain("hotfix");
+    expect(root.querySelector("h1")!.textContent).toBe("hotfix won the sprint");
+    const bar = root.querySelector(".result-bar")!;
+    expect(bar.children).toHaveLength(2);
+    expect(bar.getAttribute("aria-label")).toContain("main 40%, hotfix 60%");
   });
 
   it("uses the room's digits for the PR number", () => {

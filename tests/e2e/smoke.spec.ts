@@ -55,6 +55,33 @@ test("an offline match against bots: walk, push, HUD, and a 2-minute sprint to t
   expect(errors).toEqual([]);
 });
 
+test("a 1v1 against one bot: close two seats in the offline lobby and play to the result", async ({
+  page,
+}) => {
+  const errors = await open(page, "/?test=1&seed=21&speed=20");
+  await page.getByTestId("practice").click();
+  // Practice opens the offline lobby first, with the host's seat switches.
+  await expect(page.getByTestId("start")).toBeVisible();
+  await page.getByTestId("switch-1-closed").click();
+  await page.getByTestId("switch-2-closed").click();
+  await expect(page.getByTestId("seat-1")).toHaveClass(/is-closed/);
+  await expect(page.getByTestId("seat-2")).toHaveClass(/is-closed/);
+  // Two seats stay open: the last empty one can't be closed.
+  await expect(page.getByTestId("switch-3-closed")).toBeDisabled();
+  await page.getByRole("button", { name: "2 min" }).click();
+  await page.getByTestId("start").click();
+  await expect(page.getByTestId("timer")).toBeVisible();
+  await expect(page.locator(".hud-chip:not([hidden])")).toHaveCount(2);
+  await expect(page.locator(".hud-territory .territory-bar span:not([hidden])")).toHaveCount(2);
+  const outs = await page.evaluate(() =>
+    (window as unknown as Hooks).__mc.state()!.players.map((p) => p.out),
+  );
+  expect([outs[1], outs[2]]).toEqual([-1, -1]);
+  await expect(page.locator(".result-title")).toBeVisible({ timeout: 60_000 });
+  await expect(page.locator(".diff tbody tr")).toHaveCount(2);
+  expect(errors).toEqual([]);
+});
+
 test("watching an all-bot match", async ({ page }) => {
   const errors = await open(page, "/?offline=1&test=1&bots=4&seed=3&speed=10");
   await expect(page.getByTestId("timer")).toBeVisible();

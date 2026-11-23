@@ -7,6 +7,7 @@ import { BRANCHES } from "../content/branches";
 import { mapById, MAPS } from "../content/maps";
 import { RULES } from "../content/rules";
 import type { LobbyView } from "../core/protocol";
+import { MIN_OPEN_SEATS } from "../core/room";
 import { parseRoomCode } from "../core/room-code";
 import type { MatchResult } from "../core/score";
 import { el, withSlot } from "./dom";
@@ -170,6 +171,8 @@ export type LobbyHandlers = {
   readonly onLeave: () => void;
   readonly onCopyLink: () => void;
   readonly onPickMap: () => void;
+  /** The host opens (a bot plays it) or closes an empty seat. */
+  readonly onSeat: (seat: number, closed: boolean) => void;
 };
 
 /** The host starts the sprint, so they always count as ready (board 2: "you · ready"). */
@@ -180,6 +183,7 @@ function isReady(lobby: LobbyView, seat: number): boolean {
 
 function seatState(lobby: LobbyView, seat: number): string {
   const s = lobby.seats[seat]!;
+  if (s.kind === "closed") return t("lobby.closedState");
   if (s.kind === "empty" || s.kind === "bot") return t("lobby.botWaiting");
   if (s.away) return t("lobby.away");
   return isReady(lobby, seat) ? t("lobby.ready") : t("lobby.notReady");
@@ -188,6 +192,7 @@ function seatState(lobby: LobbyView, seat: number): string {
 function seatName(lobby: LobbyView, seat: number, me: number): string {
   const s = lobby.seats[seat]!;
   if (seat === me) return t("lobby.you");
+  if (s.kind === "closed") return t("lobby.closed");
   if (s.kind !== "human") return t("lobby.bot");
   return s.name || branchName(seat);
 }
@@ -232,6 +237,42 @@ export function showPortraits(root: ParentNode, portraits: readonly string[]): v
   });
 }
 
+/**
+ * The host's switch on an empty seat: a bot plays it, or it's closed (nobody plays it). Closing is
+ * off when it would leave fewer than two seats open.
+ */
+function seatSwitch(
+  lobby: LobbyView,
+  seat: number,
+  onSeat: (seat: number, closed: boolean) => void,
+): HTMLElement {
+  const closed = lobby.seats[seat]!.kind === "closed";
+  const open = lobby.seats.filter((s) => s.kind !== "closed").length;
+  const option = (label: string, value: boolean) => {
+    const b = button(label, value === closed ? "seg is-on" : "seg", () => {
+      if (value !== closed) onSeat(seat, value);
+    });
+    b.setAttribute("aria-pressed", String(value === closed));
+    b.dataset.testid = `switch-${seat}-${value ? "closed" : "bot"}`;
+    return b;
+  };
+  const close = option(t("lobby.seatClosed"), true);
+  if (!closed && open <= MIN_OPEN_SEATS) {
+    close.disabled = true;
+    close.title = t("lobby.minOpen");
+  }
+  return el(
+    "div",
+    {
+      class: "seat-switch",
+      role: "group",
+      "aria-label": t("lobby.seatSwitch", { branch: BRANCHES[seat]! }),
+    },
+    option(t("lobby.seatBot"), false),
+    close,
+  );
+}
+
 export function renderLobby(
   lobby: LobbyView,
   me: number,
@@ -246,10 +287,12 @@ export function renderLobby(
       const state = seatState(lobby, seat);
       const name = seatName(lobby, seat, me);
       const ready = isReady(lobby, seat);
+      const kind = lobby.seats[seat]!.kind;
+      const canSwitch = isHost && lobby.phase === "lobby" && kind !== "human";
       return el(
         "li",
         {
-          class: `panel seat seat-${b}`,
+          class: kind === "closed" ? `panel seat seat-${b} is-closed` : `panel seat seat-${b}`,
           "aria-label": t("lobby.seatLabel", { branch: b, name, state }),
           "data-testid": `seat-${seat}`,
         },
@@ -257,6 +300,7 @@ export function renderLobby(
         el("span", { class: `tag tag-${b}` }, b),
         el("span", { class: "seat-name" }, name),
         el("span", { class: ready ? "seat-state is-ready" : "seat-state" }, state),
+        ...(canSwitch ? [seatSwitch(lobby, seat, h.onSeat)] : []),
       );
     }),
   );
@@ -320,7 +364,7 @@ export function renderLobby(
     el(
       "div",
       { class: "lobby-head" },
-      el("span", { class: "hud-label" }, t("lobby.kicker")),
+      el("span", { class: "hud-label" }, t(opts.offline ? "lobby.kickerOffline" : "lobby.kicker")),
       el(
         "div",
         { class: "row" },
@@ -504,22 +548,20 @@ export function renderResult(
       el("td", { class: "final" }, `${r.share}%`),
     );
   });
+  // The bar in seat order, open seats only (a closed seat has no row).
+  const inSeatOrder = [...result.rows].sort((a, b) => a.seat - b.seat);
   const bar = el(
     "div",
     {
       class: "territory-bar result-bar",
       role: "img",
       "aria-label": t("result.territory", {
-        list: BRANCHES.map(
-          (b, seat) => `${b} ${result.rows.find((r) => r.seat === seat)!.share}%`,
-        ).join(", "),
+        list: inSeatOrder.map((r) => `${BRANCHES[r.seat]} ${r.share}%`).join(", "),
       }),
     },
-    ...BRANCHES.map((b, seat) => {
-      const span = el("span", { class: `bar-${b}` });
-      span.style.flexGrow = String(
-        Math.max(0.0001, result.rows.find((r) => r.seat === seat)!.share),
-      );
+    ...inSeatOrder.map((r) => {
+      const span = el("span", { class: `bar-${BRANCHES[r.seat]}` });
+      span.style.flexGrow = String(Math.max(0.0001, r.share));
       return span;
     }),
   );

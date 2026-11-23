@@ -6,7 +6,7 @@ import { BRANCHES } from "../content/branches";
 import { RULES } from "../content/rules";
 import { freezeStart } from "../core/freeze";
 import { ownedTiles, shares } from "../core/score";
-import { inPlay, type GameEvent, type GameState } from "../core/state";
+import { inPlay, isOpen, type GameEvent, type GameState } from "../core/state";
 import { el } from "./dom";
 import { branchName, commitHash, formatClock, logLine, powerUpLabel } from "./format";
 import { t } from "./i18n";
@@ -32,6 +32,7 @@ export class Hud {
   private readonly timer: HTMLElement;
   private readonly timerPanel: HTMLElement;
   private readonly shareValues: HTMLElement[];
+  private readonly chips: HTMLElement[];
   private readonly bar: HTMLElement;
   private readonly barParts: HTMLElement[];
   private readonly roomValue: HTMLElement;
@@ -59,18 +60,15 @@ export class Hud {
     this.timerPanel = el("div", { class: "panel hud-timer" }, this.timerLabel, this.timer);
 
     this.shareValues = BRANCHES.map(() => el("span", { class: "hud-share" }, "0%"));
-    const chips = el(
-      "div",
-      { class: "hud-chips" },
-      ...BRANCHES.map((b, seat) =>
-        el(
-          "div",
-          { class: "hud-chip" },
-          el("span", { class: `tag tag-${b}` }, b),
-          this.shareValues[seat]!,
-        ),
+    this.chips = BRANCHES.map((b, seat) =>
+      el(
+        "div",
+        { class: "hud-chip" },
+        el("span", { class: `tag tag-${b}` }, b),
+        this.shareValues[seat]!,
       ),
     );
+    const chips = el("div", { class: "hud-chips" }, ...this.chips);
     this.barParts = BRANCHES.map((b) => el("span", { class: `bar-${b}` }));
     this.bar = el("div", { class: "territory-bar", role: "img" }, ...this.barParts);
     this.mine = el("span", { class: "hud-mine" }, "");
@@ -200,13 +198,17 @@ export class Hud {
     const owned = BRANCHES.map((_, seat) => ownedTiles(s, seat));
     const pct = shares(owned, s.plus);
     pct.forEach((p, seat) => {
+      // Closed seats (a 1v1) have no chip and no part of the bar.
+      const open = isOpen(s.players[seat]!);
+      if (this.chips[seat]!.hidden === open) this.chips[seat]!.hidden = !open;
+      if (this.barParts[seat]!.hidden === open) this.barParts[seat]!.hidden = !open;
       setText(this.shareValues[seat]!, `${p}%`);
       this.barParts[seat]!.style.flexGrow = String(Math.max(p, 0.0001));
     });
-    this.bar.setAttribute(
-      "aria-label",
-      t("hud.territory", { list: BRANCHES.map((b, seat) => `${b} ${pct[seat]}%`).join(", ") }),
-    );
+    const list = BRANCHES.flatMap((b, seat) =>
+      isOpen(s.players[seat]!) ? [`${b} ${pct[seat]}%`] : [],
+    ).join(", ");
+    this.bar.setAttribute("aria-label", t("hud.territory", { list }));
     if (info.seat >= 0) setText(this.mine, `${t("hud.you")} ${pct[info.seat]}%`);
     if (info.ping !== null) setText(this.ping, t("hud.ping", { ms: info.ping }));
 

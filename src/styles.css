@@ -656,6 +656,9 @@ body.is-freeze .hud-layer::before {
   padding: 0 16px;
   text-align: center;
 }
+/* Closed seats (a 1v1) have no chip and no part of the territory bar. */
+.hud-chip[hidden],
+.territory-bar span[hidden],
 .freeze-banner[hidden] {
   display: none;
 }
@@ -868,6 +871,56 @@ body.is-freeze .hud-layer::before {
 }
 .seat-state.is-ready {
   color: var(--add);
+}
+/* A closed seat (the host's call, for a 1v1): nobody's at the desk. */
+.seat.is-closed {
+  border-style: dashed;
+  border-color: var(--line-strong);
+  background: rgba(20, 21, 27, 0.6);
+}
+.seat.is-closed .seat-art {
+  filter: grayscale(1) brightness(0.45);
+}
+.seat.is-closed .seat-name {
+  color: var(--muted);
+}
+/* The host's bot / closed switch on an empty seat. */
+.seat-switch {
+  display: flex;
+  width: 100%;
+  margin-top: 2px;
+  border: 1px solid var(--line-strong);
+  border-radius: 8px;
+  overflow: hidden;
+}
+.seg {
+  flex: 1;
+  min-height: 40px;
+  padding: 0 6px;
+  border: 0;
+  background: transparent;
+  color: var(--text);
+  font-family: var(--mono);
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+}
+.seg + .seg {
+  border-left: 1px solid var(--line-strong);
+}
+.seg:hover:not(:disabled):not(.is-on) {
+  background: rgba(255, 255, 255, 0.06);
+}
+.seg.is-on {
+  background: var(--text);
+  color: var(--ground);
+}
+.seg:disabled {
+  color: #6b7080;
+  cursor: not-allowed;
+}
+.seg:focus-visible {
+  outline-offset: -3px;
 }
 .lobby-side {
   flex: 1 1 270px;
