@@ -71,6 +71,8 @@ export default tseslint.config(
       "test-results",
       "node_modules",
       ".wrangler",
+      ".claude",
+      ".impeccable",
       "design-captures",
     ],
   },
