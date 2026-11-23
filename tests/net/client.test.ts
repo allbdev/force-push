@@ -90,12 +90,13 @@ describe("netcode (property)", () => {
             net.clients.set(id, client);
             client.join(id);
           });
-          // Let the joins land, then the host starts.
-          for (let k = 0; k < 20; k++) {
+          // Let the joins land (however slow the links), then the host starts.
+          const host = () => [...net.clients.values()].find((c) => c.seat === 0);
+          for (let k = 0; k < 200 && !host(); k++) {
             net.now++;
             net.deliverDue();
           }
-          [...net.clients.values()].find((c) => c.seat === 0)!.send({ t: "start" });
+          host()!.send({ t: "start" });
           const serverHash = new Map<number, number>();
           for (let k = 0; k < script.length + 40; k++) {
             net.now++;
