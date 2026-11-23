@@ -24,7 +24,8 @@
     "deploy": "npm run build && wrangler deploy",
     "test:bots": "BOT_MATCHES=1000 vitest run tests/core/bot.test.ts",
     "bots": "tsx tools/bots.ts",
-    "server": "npm run build && wrangler dev --port 8787 --var ALLOW_DEV_ORIGINS:1"
+    "server": "npm run build && wrangler dev --port 8787 --var ALLOW_DEV_ORIGINS:1",
+    "designs": "npm run build && tsx tools/designs/capture.ts"
   },
   "devDependencies": {
     "@cloudflare/workers-types": "^5.20261123.1",
