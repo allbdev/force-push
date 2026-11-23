@@ -144,5 +144,13 @@ describe("origin check", () => {
     expect(originAllowed("http://localhost:5173", `${site}/api/room`, false)).toBe(false);
     expect(originAllowed("http://localhost:5173", `${site}/api/room`, true)).toBe(true);
     expect(originAllowed("http://localhost.evil.example:80", `${site}/api/room`, true)).toBe(false);
+    expect(originAllowed("http://192.168.1.2:8787", `${site}/api/room`, true)).toBe(true);
+    expect(originAllowed("http://10.0.0.7:8787", `${site}/api/room`, true)).toBe(true);
+    expect(originAllowed("http://172.20.1.9:8787", `${site}/api/room`, true)).toBe(true);
+    expect(originAllowed("http://192.168.1.2:8787", `${site}/api/room`, false)).toBe(false);
+    expect(originAllowed("http://172.32.1.9:8787", `${site}/api/room`, true)).toBe(false);
+    expect(originAllowed("http://192.168.1.2.evil.example:8787", `${site}/api/room`, true)).toBe(
+      false,
+    );
   });
 });
