@@ -51,6 +51,15 @@ describe("scoreMatch", () => {
     expect(r.winners).toEqual([1]);
   });
 
+  it("never shows the loser of a tie on tiles with the bigger share", () => {
+    // 5, 5 and 1 tiles: 45.45%, 45.45% and 9.09%, one spare point between the tied two.
+    const r = scoreMatch(paintCounts([5, 5, 0, 1], [6, 9, 0, 2]));
+    expect(r.winners).toEqual([1]);
+    const pct = Object.fromEntries(r.rows.map((x) => [x.seat, x.share]));
+    expect(pct[1]).toBeGreaterThanOrEqual(pct[0]!);
+    expect(pct[0]! + pct[1]! + pct[3]!).toBe(100);
+  });
+
   it("shares the win on a full tie", () => {
     const r = scoreMatch(paintCounts([4, 4, 0, 0], [6, 6, 0, 0]));
     expect(r.winners).toEqual([0, 1]);

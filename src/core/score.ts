@@ -36,13 +36,20 @@ export function ownedTiles(s: Pick<GameState, "owner">, seat: number): number {
   return n;
 }
 
-/** Whole-number shares that add up to 100 (or all 0 when nothing is painted). */
-export function shares(counts: readonly number[]): number[] {
+/**
+ * Whole-number shares that add up to 100 (or all 0 when nothing is painted). Spare points go to
+ * the largest remainders; on equal remainders, to the higher `rank` (so a tie on tiles never shows
+ * the loser ahead of the winner).
+ */
+export function shares(counts: readonly number[], rank: readonly number[] = []): number[] {
   const total = counts.reduce((a, b) => a + b, 0);
   if (total === 0) return counts.map(() => 0);
   const base = counts.map((c) => Math.floor((c * 100) / total));
   const rest = counts.map((c, i) => ({ i, r: (c * 100) % total }));
-  rest.sort((a, b) => b.r - a.r || counts[b.i]! - counts[a.i]! || a.i - b.i);
+  rest.sort(
+    (a, b) =>
+      b.r - a.r || counts[b.i]! - counts[a.i]! || (rank[b.i] ?? 0) - (rank[a.i] ?? 0) || a.i - b.i,
+  );
   let left = 100 - base.reduce((a, b) => a + b, 0);
   for (const { i } of rest) {
     if (left <= 0) break;
@@ -54,7 +61,7 @@ export function shares(counts: readonly number[]): number[] {
 
 export function scoreMatch(s: GameState): MatchResult {
   const owned = Array.from({ length: SEATS }, (_, seat) => ownedTiles(s, seat));
-  const pct = shares(owned);
+  const pct = shares(owned, s.plus);
   const rows: BranchScore[] = owned.map((o, seat) => ({
     seat,
     owned: o,

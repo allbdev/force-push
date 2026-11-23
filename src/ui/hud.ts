@@ -177,7 +177,7 @@ export class Hud {
 
     // Territory.
     const owned = BRANCHES.map((_, seat) => ownedTiles(s, seat));
-    const pct = shares(owned);
+    const pct = shares(owned, s.plus);
     pct.forEach((p, seat) => {
       setText(this.shareValues[seat]!, `${p}%`);
       this.barParts[seat]!.style.flexGrow = String(Math.max(p, 0.0001));
