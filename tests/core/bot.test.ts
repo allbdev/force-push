@@ -100,7 +100,9 @@ describe(`${MATCHES} seeded bot-only matches`, () => {
     const seconds = 90;
     const stuckLimit = 15 * TICKS_PER_SECOND;
     for (let seed = 1; seed <= MATCHES; seed++) {
-      const s = createMatch({ map, seed, ticks: seconds * TICKS_PER_SECOND });
+      // Every fourth match is a 1v1 and every fourth a three-way (closed seats, GAME_PLAN §7).
+      const closed = seed % 4 === 0 ? 0b1010 : seed % 4 === 1 ? 0b0100 : 0;
+      const s = createMatch({ map, seed, ticks: seconds * TICKS_PER_SECOND, closed });
       const still = [0, 0, 0, 0];
       const lastTile = s.players.map((p) => effectiveTile(s, p));
       const inputs = [0, 0, 0, 0];
@@ -111,6 +113,10 @@ describe(`${MATCHES} seeded bot-only matches`, () => {
         const boxesLeft = s.kind.includes(BOX);
         for (let seat = 0; seat < 4; seat++) {
           const p = s.players[seat]!;
+          if ((closed >> seat) & 1) {
+            if (inputs[seat] !== 0) throw new Error(`seed ${seed}: closed seat ${seat} played`);
+            continue;
+          }
           if (!inPlay(p)) {
             still[seat] = 0;
             continue;
@@ -128,7 +134,8 @@ describe(`${MATCHES} seeded bot-only matches`, () => {
         }
       }
       for (let seat = 0; seat < 4; seat++)
-        if (s.stats.pushes[seat] === 0) throw new Error(`seed ${seed}: seat ${seat} never pushed`);
+        if (!((closed >> seat) & 1) && s.stats.pushes[seat] === 0)
+          throw new Error(`seed ${seed}: seat ${seat} never pushed`);
     }
   }, 300_000);
 });

@@ -80,6 +80,66 @@ describe("room", () => {
     ]);
   });
 
+  it("lets the host close empty seats for a 1v1, and nobody else", () => {
+    const { room, client } = setup();
+    const a = client("a");
+    const b = client("b");
+    room.receive("a", { t: "join", name: "", token: "" });
+    room.receive("b", { t: "join", name: "", token: "" });
+    room.receive("b", { t: "seat", seat: 2, closed: true });
+    expect(b.last("error")!.code).toBe("not-host");
+    room.receive("a", { t: "seat", seat: 1, closed: true });
+    room.receive("a", { t: "seat", seat: 2, closed: true });
+    room.receive("a", { t: "seat", seat: 3, closed: true });
+    const kinds = () => a.last("lobby")!.lobby.seats.map((x) => x.kind);
+    // A seat with a person in it can't be closed.
+    expect(kinds()).toEqual(["human", "human", "closed", "closed"]);
+    room.receive("a", { t: "start" });
+    const match = b.last("start")!.match;
+    expect(match.closed).toBe(0b1100);
+    expect(kinds()).toEqual(["human", "human", "closed", "closed"]);
+    room.receive("a", { t: "input", seq: 1, bits: 2 });
+    for (let k = 0; k < 40; k++) room.advance();
+    for (const t of a.all("tick")) expect([t.inputs[2], t.inputs[3]]).toEqual([0, 0]);
+    expect(room.state!.players[2]!.out).toBe(-1);
+  });
+
+  it("keeps at least two seats open, reopens closed ones, and seats nobody in a closed seat", () => {
+    const { room, client } = setup();
+    const a = client("a");
+    room.receive("a", { t: "join", name: "", token: "" });
+    for (const seat of [1, 2, 3]) room.receive("a", { t: "seat", seat, closed: true });
+    const kinds = () => a.last("lobby")!.lobby.seats.map((x) => x.kind);
+    expect(kinds()).toEqual(["human", "closed", "closed", "empty"]);
+    room.receive("a", { t: "seat", seat: 0, closed: true });
+    expect(kinds()[0]).toBe("human");
+    // A friend arrives: the open seat, never a closed one; a third watches.
+    const b = client("b");
+    room.receive("b", { t: "join", name: "", token: "" });
+    expect(b.last("welcome")!.seat).toBe(3);
+    const c = client("c");
+    room.receive("c", { t: "join", name: "", token: "" });
+    expect(c.last("welcome")!.seat).toBe(-1);
+    room.receive("a", { t: "seat", seat: 2, closed: false });
+    expect(kinds()).toEqual(["human", "closed", "empty", "human"]);
+  });
+
+  it("keeps closed seats through the result and a rematch, and can't change them mid-sprint", () => {
+    const { room, client } = setup();
+    const a = client("a");
+    room.receive("a", { t: "join", name: "", token: "" });
+    room.receive("a", { t: "settings", mapId: "open-space", minutes: 2 });
+    room.receive("a", { t: "seat", seat: 3, closed: true });
+    room.receive("a", { t: "start" });
+    room.receive("a", { t: "seat", seat: 3, closed: false });
+    room.receive("a", { t: "seat", seat: 2, closed: true });
+    expect(a.last("start")!.match.closed).toBe(0b1000);
+    for (let k = 0; k < minutes(2); k++) room.advance();
+    expect(room.phase).toBe("result");
+    room.receive("a", { t: "rematch" });
+    expect(a.last("start")!.match.closed).toBe(0b1000);
+  });
+
   it("broadcasts each tick's inputs and a hash every second that matches a replay", () => {
     const { room, client } = setup();
     const a = client("a");

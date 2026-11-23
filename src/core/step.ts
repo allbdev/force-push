@@ -6,7 +6,7 @@ import { releasePasses, tickPushes, tryDrop } from "./blast";
 import { tickFreeze } from "./freeze";
 import { movePlayer, updatePref } from "./movement";
 import { applyHits, applyPickups, tickTimers } from "./revert";
-import { cloneState, IN_PUSH, INPUT_MASK, inPlay, SEATS, type GameState } from "./state";
+import { cloneState, IN_PUSH, INPUT_MASK, inPlay, isOpen, SEATS, type GameState } from "./state";
 
 export function step(state: GameState, inputs: readonly number[]): GameState {
   const next = cloneState(state);
@@ -22,6 +22,7 @@ export function stepInPlace(s: GameState, inputs: readonly number[]): void {
 
   for (let seat = 0; seat < SEATS; seat++) {
     const p = s.players[seat]!;
+    if (!isOpen(p)) continue;
     const input = (inputs[seat] ?? 0) & INPUT_MASK;
     updatePref(p, input);
     if (inPlay(p)) {

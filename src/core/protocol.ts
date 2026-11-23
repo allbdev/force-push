@@ -4,9 +4,10 @@
  */
 import type { GameState } from "./state";
 
-export const PROTOCOL_VERSION = 1;
+export const PROTOCOL_VERSION = 2;
 
-export type SeatKind = "empty" | "human" | "bot";
+/** `empty` becomes a bot when the sprint starts; `closed` stays out of the match (the host's call). */
+export type SeatKind = "empty" | "human" | "bot" | "closed";
 
 export type SeatView = {
   readonly kind: SeatKind;
@@ -35,6 +36,8 @@ export type ClientMessage =
   | { readonly t: "input"; readonly seq: number; readonly bits: number }
   | { readonly t: "ready"; readonly ready: boolean }
   | { readonly t: "settings"; readonly mapId: string; readonly minutes: number }
+  /** The host opens (bot) or closes an empty seat, in the lobby. */
+  | { readonly t: "seat"; readonly seat: number; readonly closed: boolean }
   | { readonly t: "start" }
   | { readonly t: "rematch" }
   | { readonly t: "lobby" }
@@ -48,6 +51,8 @@ export type MatchStart = {
   readonly mapId: string;
   readonly ticks: number;
   readonly freeze: boolean;
+  /** Closed seats, one bit per seat (bit 0 = main). */
+  readonly closed: number;
   readonly version: number;
 };
 

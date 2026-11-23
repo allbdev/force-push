@@ -111,7 +111,14 @@ export class MatchClient {
     if (!map) return;
     this.match = match;
     this.confirmed =
-      state ?? createMatch({ map, seed: match.seed, ticks: match.ticks, freeze: match.freeze });
+      state ??
+      createMatch({
+        map,
+        seed: match.seed,
+        ticks: match.ticks,
+        freeze: match.freeze,
+        closed: match.closed,
+      });
     this.log = state && state.tick > 0 ? null : [];
     this.previous = cloneState(this.confirmed);
     this.pending = [];
@@ -174,8 +181,8 @@ export class MatchClient {
   /** The match so far as a replay, or null if this client didn't see it from the start. */
   replay(): Replay | null {
     if (!this.log || !this.match) return null;
-    const { seed, mapId, ticks, freeze, version } = this.match;
-    return { version, seed, mapId, ticks, freeze, inputs: Uint8Array.from(this.log) };
+    const { seed, mapId, ticks, freeze, closed, version } = this.match;
+    return { version, seed, mapId, ticks, freeze, closed, inputs: Uint8Array.from(this.log) };
   }
 
   /** Inputs not yet acknowledged by the server (for tests and the ping display). */

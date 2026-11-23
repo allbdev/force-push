@@ -4,6 +4,8 @@ import { BOX, FROZEN, RACK } from "../../src/core/map";
 import { ownedTiles } from "../../src/core/score";
 import {
   cloneState,
+  CLOSED,
+  closedMask,
   createMatch,
   effectiveTile,
   hashState,
@@ -133,5 +135,57 @@ describe("step", () => {
     for (let k = 0; k < 600; k++)
       stepInPlace(s, [(k * 7) % 32, (k * 11) % 32, (k * 13) % 32, (k * 17) % 32]);
     expect(hashState(s)).toMatchSnapshot();
+  });
+});
+
+describe("closed seats", () => {
+  it("never move, drop, get reverted, paint or score, whatever inputs arrive for them", () => {
+    fc.assert(
+      fc.property(
+        fc.integer(),
+        fc.integer({ min: 1, max: 14 }),
+        fc.array(fc.array(fc.integer({ min: 0, max: 31 }), { minLength: 4, maxLength: 4 }), {
+          minLength: 50,
+          maxLength: 300,
+        }),
+        (seed, closed, inputs) => {
+          const s = createMatch({ map: openSpace(), seed, ticks: 10_000, freeze: true, closed });
+          expect(closedMask(s)).toBe(closed);
+          const start = s.players.map((p) => ({ ...p }));
+          for (const tick of inputs) {
+            stepInPlace(s, tick);
+            checkInvariants(s);
+          }
+          for (let seat = 0; seat < 4; seat++) {
+            if (!((closed >> seat) & 1)) continue;
+            expect(s.players[seat]).toEqual(start[seat]);
+            expect(s.players[seat]!.out).toBe(CLOSED);
+            expect(ownedTiles(s, seat)).toBe(0);
+            expect(s.plus[seat]).toBe(0);
+            expect(s.stats.pushes[seat]).toBe(0);
+            expect(s.stats.reverted[seat]).toBe(0);
+            expect(s.pushes.some((q) => q.owner === seat)).toBe(false);
+          }
+        },
+      ),
+      { numRuns: 60 },
+    );
+  });
+
+  it("leave a full table playing exactly as before", () => {
+    const a = createMatch({ map: openSpace(), seed: 42, ticks: 2000, freeze: true });
+    const b = createMatch({ map: openSpace(), seed: 42, ticks: 2000, freeze: true, closed: 0 });
+    for (let k = 0; k < 500; k++) {
+      const inputs = [k % 31, (k * 3) % 31, (k * 5) % 31, (k * 7) % 31];
+      stepInPlace(a, inputs);
+      stepInPlace(b, inputs);
+    }
+    expect(hashState(a)).toBe(hashState(b));
+  });
+
+  it("change the hash: a 1v1 is a different match from a full table", () => {
+    const a = createMatch({ map: openSpace(), seed: 42, ticks: 2000 });
+    const b = createMatch({ map: openSpace(), seed: 42, ticks: 2000, closed: 0b1100 });
+    expect(hashState(a)).not.toBe(hashState(b));
   });
 });

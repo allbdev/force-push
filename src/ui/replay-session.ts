@@ -10,11 +10,21 @@ import { SEATS } from "../core/state";
 import { MatchClient } from "../net/client";
 import type { Session } from "./session";
 
-function replayLobby(phase: LobbyView["phase"], mapId: string, minutes: number): LobbyView {
+function replayLobby(
+  phase: LobbyView["phase"],
+  mapId: string,
+  minutes: number,
+  closed: number,
+): LobbyView {
   return {
     code: "REPLAY",
     phase,
-    seats: BRANCHES.map(() => ({ kind: "bot" as const, name: "", ready: false, away: false })),
+    seats: BRANCHES.map((_, seat) => ({
+      kind: (closed >> seat) & 1 ? ("closed" as const) : ("bot" as const),
+      name: "",
+      ready: false,
+      away: false,
+    })),
     host: 0,
     mapId,
     minutes,
@@ -43,12 +53,13 @@ export class ReplaySession implements Session {
       mapId: replay.mapId,
       ticks: replay.ticks,
       freeze: replay.freeze,
+      closed: replay.closed,
       version: replay.version,
     };
     this.client.receive({ t: "welcome", seat: -1, token: "" });
     this.client.receive({
       t: "lobby",
-      lobby: replayLobby("playing", replay.mapId, Math.round(replay.ticks / 1200)),
+      lobby: replayLobby("playing", replay.mapId, Math.round(replay.ticks / 1200), replay.closed),
     });
     this.client.receive({ t: "snapshot", match: this.match, state: replayState(replay, from) });
   }
@@ -65,7 +76,12 @@ export class ReplaySession implements Session {
       } else if (this.client.lobby?.phase !== "result") {
         this.client.receive({
           t: "lobby",
-          lobby: replayLobby("result", this.replay.mapId, Math.round(this.replay.ticks / 1200)),
+          lobby: replayLobby(
+            "result",
+            this.replay.mapId,
+            Math.round(this.replay.ticks / 1200),
+            this.replay.closed,
+          ),
         });
       }
       return;

@@ -20,6 +20,8 @@ export type Replay = {
   /** The sprint length, and whether the code freeze was on. */
   readonly ticks: number;
   readonly freeze: boolean;
+  /** Closed seats, one bit per seat (0 for a full table). */
+  readonly closed: number;
   /** Four bytes (one per seat) per recorded tick. */
   readonly inputs: Uint8Array;
 };
@@ -65,7 +67,8 @@ export function encodeReplay(r: Replay): string {
   const u16 = (v: number) => bytes.push((v >>> 8) & 255, v & 255);
   u32(r.seed >>> 0);
   u16(r.ticks);
-  bytes.push(r.freeze ? 1 : 0, r.mapId.length);
+  // Flags: bit 0 the freeze, bits 1-4 the closed seats (old links only ever set bit 0).
+  bytes.push((r.freeze ? 1 : 0) | ((r.closed & 15) << 1), r.mapId.length);
   for (const ch of r.mapId) bytes.push(ch.charCodeAt(0));
   u16(n);
   for (let t = 0; t < n;) {
@@ -99,7 +102,9 @@ export function decodeReplay(text: unknown): Replay | null {
   const ticks = u16();
   const flags = u8();
   const idLen = u8();
-  if (ticks < 1 || ticks > MAX_REPLAY_TICKS || flags > 1 || idLen < 1 || idLen > 32) return null;
+  if (ticks < 1 || ticks > MAX_REPLAY_TICKS || flags > 31 || idLen < 1 || idLen > 32) return null;
+  const closed = flags >> 1;
+  if (closed === 15) return null;
   let mapId = "";
   for (let k = 0; k < idLen; k++) {
     const c = u8();
@@ -127,12 +132,18 @@ export function decodeReplay(text: unknown): Replay | null {
       for (let s = 0; s < SEATS; s++) inputs[t * SEATS + s] = (v >> (5 * s)) & 31;
   }
   if (i !== b.length) return null;
-  return { version, seed, mapId, ticks, freeze: flags === 1, inputs };
+  return { version, seed, mapId, ticks, freeze: (flags & 1) === 1, closed, inputs };
 }
 
 /** The state after the first `upTo` recorded ticks (all of them by default). */
 export function replayState(r: Replay, upTo = r.inputs.length / SEATS): GameState {
-  const s = createMatch({ map: mapById(r.mapId)!, seed: r.seed, ticks: r.ticks, freeze: r.freeze });
+  const s = createMatch({
+    map: mapById(r.mapId)!,
+    seed: r.seed,
+    ticks: r.ticks,
+    freeze: r.freeze,
+    closed: r.closed,
+  });
   const inputs = [0, 0, 0, 0];
   const n = Math.min(upTo, r.inputs.length / SEATS);
   for (let t = 0; t < n; t++) {
@@ -144,7 +155,13 @@ export function replayState(r: Replay, upTo = r.inputs.length / SEATS): GameStat
 
 /** The tick (index into the inputs) on which the match's biggest blast went off, or -1. */
 export function biggestPushTick(r: Replay): number {
-  const s = createMatch({ map: mapById(r.mapId)!, seed: r.seed, ticks: r.ticks, freeze: r.freeze });
+  const s = createMatch({
+    map: mapById(r.mapId)!,
+    seed: r.seed,
+    ticks: r.ticks,
+    freeze: r.freeze,
+    closed: r.closed,
+  });
   const inputs = [0, 0, 0, 0];
   let best = -1;
   let gain = 0;

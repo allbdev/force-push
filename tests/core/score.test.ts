@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import fc from "fast-check";
 import { scoreMatch, shares } from "../../src/core/score";
+import { CLOSED } from "../../src/core/state";
 import { fromAscii, tile } from "./helpers";
 
 const ROOM = [".....", ".#.#.", "0.1.2", ".#.#.", "3...."];
@@ -63,6 +64,16 @@ describe("scoreMatch", () => {
   it("shares the win on a full tie", () => {
     const r = scoreMatch(paintCounts([4, 4, 0, 0], [6, 6, 0, 0]));
     expect(r.winners).toEqual([0, 1]);
+  });
+
+  it("leaves closed seats out of the rows and splits 100% between the open ones", () => {
+    const s = paintCounts([5, 0, 6, 0], [5, 0, 7, 0]);
+    s.players[1]!.out = CLOSED;
+    s.players[3]!.out = CLOSED;
+    const r = scoreMatch(s);
+    expect(r.rows.map((x) => x.seat)).toEqual([2, 0]);
+    expect(r.rows.reduce((a, x) => a + x.share, 0)).toBe(100);
+    expect(r.winners).toEqual([2]);
   });
 
   it("reports the highlights", () => {

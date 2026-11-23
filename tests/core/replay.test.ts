@@ -13,8 +13,8 @@ import { createMatch, hashState, SIM_VERSION } from "../../src/core/state";
 import { stepInPlace } from "../../src/core/step";
 import { mapById } from "../../src/content/maps";
 
-function recordBotMatch(seed: number, ticks: number, mapId = "open-space") {
-  const s = createMatch({ map: mapById(mapId)!, seed, ticks, freeze: true });
+function recordBotMatch(seed: number, ticks: number, mapId = "open-space", closed = 0) {
+  const s = createMatch({ map: mapById(mapId)!, seed, ticks, freeze: true, closed });
   const log: number[] = [];
   while (!s.ended) {
     const inputs = [0, 1, 2, 3].map((seat) => botInput(s, seat));
@@ -27,6 +27,7 @@ function recordBotMatch(seed: number, ticks: number, mapId = "open-space") {
     mapId,
     ticks,
     freeze: true,
+    closed,
     inputs: Uint8Array.from(log),
   };
   return { s, replay };
@@ -38,6 +39,22 @@ describe("replays", () => {
     const back = decodeReplay(encodeReplay(replay))!;
     expect(back).not.toBeNull();
     expect(hashState(replayState(back))).toBe(hashState(s));
+  });
+
+  it("replay a 1v1 (closed seats travel in the link)", () => {
+    const { s, replay } = recordBotMatch(77, 1200, "data-center", 0b0110);
+    const back = decodeReplay(encodeReplay(replay))!;
+    expect(back.closed).toBe(0b0110);
+    expect(hashState(replayState(back))).toBe(hashState(s));
+  });
+
+  it("read links made before closed seats as a full table", () => {
+    // Flags byte 1 (freeze on), as every link had before closed seats existed.
+    const { replay } = recordBotMatch(5, 100);
+    const back = decodeReplay(encodeReplay(replay))!;
+    expect([back.freeze, back.closed]).toEqual([true, 0]);
+    const all = encodeReplay({ ...replay, closed: 15 });
+    expect(decodeReplay(all)).toBeNull();
   });
 
   it("fit a 3-minute match in a link", () => {
@@ -60,6 +77,7 @@ describe("replays", () => {
             mapId: "rooftop",
             ticks: 1000,
             freeze: false,
+            closed: 0,
             inputs,
           };
           const back = decodeReplay(encodeReplay(r))!;

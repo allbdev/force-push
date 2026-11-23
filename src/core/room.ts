@@ -56,6 +56,9 @@ type Seat = {
   rematch: boolean;
 };
 
+/** The fewest seats a room can be left with when the host closes some (a 1v1). */
+export const MIN_OPEN_SEATS = 2;
+
 /** A hash goes out every second so clients can detect drift. */
 export const HASH_EVERY = TICKS_PER_SECOND;
 
@@ -144,6 +147,11 @@ export class Room {
         this.minutes = message.minutes;
         this.broadcastLobby();
         return;
+      case "seat":
+        if (seat !== this.host) return this.send(clientId, { t: "error", code: "not-host" });
+        if (this.phaseValue !== "lobby") return;
+        this.setClosed(message.seat, message.closed);
+        return;
       case "start":
         if (seat !== this.host) return this.send(clientId, { t: "error", code: "not-host" });
         if (this.phaseValue !== "playing") this.startMatch();
@@ -182,9 +190,11 @@ export class Room {
     const game = this.game;
     if (this.phaseValue !== "playing" || !game) return;
     const inputs = this.seats.map((s, seat) =>
-      s.kind === "human" && s.clientId !== null
-        ? (s.input | s.latch) & INPUT_MASK
-        : botInput(game, seat),
+      s.kind === "closed"
+        ? 0
+        : s.kind === "human" && s.clientId !== null
+          ? (s.input | s.latch) & INPUT_MASK
+          : botInput(game, seat),
     );
     for (const s of this.seats) s.latch = 0;
     const tick = game.tick;
@@ -217,6 +227,23 @@ export class Room {
       minutes: this.minutes,
       rematch: this.seats.map((s) => s.rematch),
     };
+  }
+
+  /**
+   * Opens or closes an empty seat (never one a person sits in). At least two seats stay open, so
+   * there's always someone to play against.
+   */
+  private setClosed(seat: number, closed: boolean): void {
+    const s = this.seats[seat]!;
+    if (closed) {
+      if (s.kind !== "empty" && s.kind !== "bot") return;
+      if (this.seats.filter((x) => x.kind !== "closed").length <= MIN_OPEN_SEATS) return;
+      s.kind = "closed";
+    } else {
+      if (s.kind !== "closed") return;
+      s.kind = "empty";
+    }
+    this.broadcastLobby();
   }
 
   private humans(): Seat[] {
@@ -281,15 +308,26 @@ export class Room {
 
   private startMatch(): void {
     const map = mapById(this.mapId) ?? mapById(DEFAULT_MAP_ID)!;
+    const closed = this.seats.reduce(
+      (m, s, seat) => (s.kind === "closed" ? m | (1 << seat) : m),
+      0,
+    );
     const match: MatchStart = {
       seed: this.random() | 0,
       mapId: map.id,
       ticks: this.minutes * 60 * TICKS_PER_SECOND,
       freeze: true,
+      closed,
       version: SIM_VERSION,
     };
     this.match = match;
-    this.game = createMatch({ map, seed: match.seed, ticks: match.ticks, freeze: match.freeze });
+    this.game = createMatch({
+      map,
+      seed: match.seed,
+      ticks: match.ticks,
+      freeze: match.freeze,
+      closed: match.closed,
+    });
     for (const s of this.seats) {
       if (s.kind === "empty") s.kind = "bot";
       s.rematch = false;

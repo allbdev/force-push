@@ -21,6 +21,7 @@ function recorded(): string {
     mapId: "rooftop",
     ticks: 3600,
     freeze: true,
+    closed: 0,
     inputs: Uint8Array.from(log),
   };
   return encodeReplay(r);

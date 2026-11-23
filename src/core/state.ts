@@ -40,7 +40,7 @@ export type Player = {
   duck: number;
   /** The next push repaints through one rack. */
   rebase: number;
-  /** Ticks left out of play after a revert (0 = in play). */
+  /** Ticks left out of play after a revert (0 = in play), or `CLOSED` for a seat nobody plays. */
   out: number;
   grace: number;
   /** Where the player fell, and who reverted them (seat, or -1 for nobody: self or freeze). */
@@ -101,6 +101,9 @@ export type Stats = {
   bestGain: number;
 };
 
+/** `Player.out` for a closed seat: no developer, no desk, no share, for the whole match. */
+export const CLOSED = -1;
+
 export type MatchSetup = {
   readonly map: MapDef;
   readonly seed: number;
@@ -108,6 +111,8 @@ export type MatchSetup = {
   readonly ticks: number;
   /** Code freeze in the last 30 s (second version). */
   readonly freeze?: boolean;
+  /** Closed seats, one bit per seat (bit 0 = main). Nobody plays them, not even a bot. */
+  readonly closed?: number;
 };
 
 export type GameState = {
@@ -197,7 +202,9 @@ export function createMatch(setup: MatchSetup): GameState {
     blastSeat: new Uint8Array(n),
     players: BRANCHES.map((_, seat) => {
       const [x, y] = deskOf(map, seat);
-      return newPlayer(x, y);
+      const p = newPlayer(x, y);
+      if (((setup.closed ?? 0) >> seat) & 1) p.out = CLOSED;
+      return p;
     }),
     pushes: [],
     nextPushId: 1,
@@ -259,6 +266,20 @@ export function effectiveTile(s: GameState, p: Player): number {
 
 export function inPlay(p: Player): boolean {
   return p.out === 0;
+}
+
+/** Whether the seat is in this match at all (closed seats aren't). */
+export function isOpen(p: Player): boolean {
+  return p.out !== CLOSED;
+}
+
+/** The closed seats as a bitmask (bit 0 = main), as `MatchSetup.closed` takes them. */
+export function closedMask(s: Pick<GameState, "players">): number {
+  let m = 0;
+  s.players.forEach((p, seat) => {
+    if (!isOpen(p)) m |= 1 << seat;
+  });
+  return m;
 }
 
 export function pushAt(s: GameState, i: number): Push | undefined {

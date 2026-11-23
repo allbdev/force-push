@@ -85,6 +85,10 @@ export function decodeClient(data: string | ArrayBuffer | Uint8Array): ClientMes
       if (!isStr(o.mapId, 32) || !/^[a-z0-9-]+$/.test(o.mapId) || !isInt(o.minutes, 1, 10))
         return null;
       return { t: "settings", mapId: o.mapId, minutes: o.minutes };
+    case "seat":
+      if (!onlyKeys(o, ["t", "seat", "closed"])) return null;
+      if (!isInt(o.seat, 0, SEATS - 1) || typeof o.closed !== "boolean") return null;
+      return { t: "seat", seat: o.seat, closed: o.closed };
     case "ping":
       if (!onlyKeys(o, ["t", "id"]) || !isInt(o.id, 0, 0xffffffff)) return null;
       return { t: "ping", id: o.id };
@@ -179,7 +183,7 @@ export function decodeServer(data: string | ArrayBuffer | Uint8Array): ServerMes
 }
 
 const PHASES: readonly RoomPhase[] = ["lobby", "playing", "result"];
-const KINDS: readonly SeatKind[] = ["empty", "human", "bot"];
+const KINDS: readonly SeatKind[] = ["empty", "human", "bot", "closed"];
 
 function parseLobby(v: unknown): LobbyView | null {
   if (!isObj(v)) return null;
@@ -207,11 +211,11 @@ function parseLobby(v: unknown): LobbyView | null {
 
 function parseMatch(v: unknown): MatchStart | null {
   if (!isObj(v)) return null;
-  const { seed, mapId, ticks, freeze, version } = v;
+  const { seed, mapId, ticks, freeze, closed, version } = v;
   if (!isInt(seed, -0x80000000, 0xffffffff) || !isStr(mapId, 32) || !isInt(ticks, 1, 20 * 60 * 10))
     return null;
-  if (typeof freeze !== "boolean" || !isInt(version, 0, 1000)) return null;
-  return { seed, mapId, ticks, freeze, version };
+  if (typeof freeze !== "boolean" || !isInt(closed, 0, 14) || !isInt(version, 0, 1000)) return null;
+  return { seed, mapId, ticks, freeze, closed, version };
 }
 
 // ----- snapshots -------------------------------------------------------------------------------

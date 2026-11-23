@@ -31,6 +31,7 @@ const clientArb: fc.Arbitrary<ClientMessage> = fc.oneof(
     minutes: fc.constantFrom(2, 3, 5),
   }),
   fc.record({ t: fc.constant("ping" as const), id: fc.nat(0xffffffff) }),
+  fc.record({ t: fc.constant("seat" as const), seat: fc.nat(3), closed: fc.boolean() }),
   fc.constantFrom<ClientMessage>(
     { t: "start" },
     { t: "rematch" },
@@ -67,6 +68,9 @@ describe("codec: client → server", () => {
       '{"t":"ready","ready":"yes"}',
       '{"t":"ping","id":-1}',
       '{"__proto__":{"t":"start"}}',
+      '{"t":"seat","seat":4,"closed":true}',
+      '{"t":"seat","seat":1,"closed":1}',
+      '{"t":"seat","seat":1,"closed":true,"x":0}',
       "x".repeat(MAX_CLIENT_BYTES + 1),
       new Uint8Array([1, 0, 0, 0, 1, 32]).buffer,
       new Uint8Array([1, 0, 0, 0, 1]).buffer,
@@ -114,7 +118,7 @@ describe("codec: server → client", () => {
           { kind: "human", name: "Ana", ready: true, away: false },
           { kind: "bot", name: "", ready: false, away: false },
           { kind: "empty", name: "", ready: false, away: false },
-          { kind: "human", name: "Bia", ready: false, away: true },
+          { kind: "closed", name: "", ready: false, away: false },
         ],
         host: 0,
         mapId: "open-space",
@@ -131,7 +135,7 @@ describe("codec: server → client", () => {
       stepInPlace(s, [k % 31, (k * 3) % 31, (k * 5) % 31, (k * 7) % 31]);
     const msg = encodeServer({
       t: "snapshot",
-      match: { seed: 99, mapId: "open-space", ticks: 2000, freeze: true, version: 1 },
+      match: { seed: 99, mapId: "open-space", ticks: 2000, freeze: true, closed: 0, version: 1 },
       state: s,
     });
     const back = decodeServer(toWire(msg));
@@ -146,6 +150,15 @@ describe("codec: server → client", () => {
     expect(stateFromJson({ ...s, players: [] })).toBeNull();
     expect(decodeServer('{"t":"lobby","lobby":{"code":"<script>"}}')).toBeNull();
     expect(decodeServer('{"t":"welcome","seat":9,"token":""}')).toBeNull();
+    const start = (closed: unknown) =>
+      decodeServer(
+        JSON.stringify({
+          t: "start",
+          match: { seed: 1, mapId: "open-space", ticks: 100, freeze: true, closed, version: 1 },
+        }),
+      );
+    expect(start(0b0110)).not.toBeNull();
+    for (const bad of [15, -1, 16, "3", undefined]) expect(start(bad)).toBeNull();
     fc.assert(
       fc.property(fc.json(), (j) => {
         expect(() => decodeServer(j)).not.toThrow();

@@ -3,7 +3,7 @@
  * branch owns. Shares are of the painted tiles and add up to 100 (largest remainder).
  * Winner: most tiles; then the bigger `+`; still tied, they share the win.
  */
-import { SEATS, type GameState } from "./state";
+import { isOpen, SEATS, type GameState } from "./state";
 
 export type BranchScore = {
   readonly seat: number;
@@ -15,7 +15,7 @@ export type BranchScore = {
 };
 
 export type MatchResult = {
-  /** Best first (by owned, then plus, then seat). */
+  /** Best first (by owned, then plus, then seat); closed seats are left out. */
   readonly rows: readonly BranchScore[];
   /** Seats that won (more than one on a full tie). */
   readonly winners: readonly number[];
@@ -61,13 +61,17 @@ export function shares(counts: readonly number[], rank: readonly number[] = []):
 
 export function scoreMatch(s: GameState): MatchResult {
   const owned = Array.from({ length: SEATS }, (_, seat) => ownedTiles(s, seat));
-  const pct = shares(owned, s.plus);
-  const rows: BranchScore[] = owned.map((o, seat) => ({
+  const open = owned.map((_, seat) => seat).filter((seat) => isOpen(s.players[seat]!));
+  const pct = shares(
+    open.map((seat) => owned[seat]!),
+    open.map((seat) => s.plus[seat]!),
+  );
+  const rows: BranchScore[] = open.map((seat, k) => ({
     seat,
-    owned: o,
+    owned: owned[seat]!,
     plus: s.plus[seat]!,
     minus: s.minus[seat]!,
-    share: pct[seat]!,
+    share: pct[k]!,
   }));
   rows.sort((a, b) => b.owned - a.owned || b.plus - a.plus || a.seat - b.seat);
   const top = rows[0]!;
