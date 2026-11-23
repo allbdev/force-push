@@ -55,8 +55,7 @@ button {
 
 .landing {
   position: relative;
-  max-width: 1120px;
-  margin: 0 auto;
+  margin: 0;
   padding: clamp(32px, 8vh, 96px) clamp(20px, 6vw, 88px);
   display: flex;
   flex-direction: column;
@@ -79,7 +78,7 @@ button {
 
 .title {
   margin: 0;
-  font-size: clamp(64px, 11vw, 136px);
+  font-size: clamp(64px, 8vw, 150px);
   font-weight: 700;
   line-height: 0.95;
   letter-spacing: -0.02em;
@@ -88,7 +87,7 @@ button {
 .pitch {
   margin: 8px 0 0;
   max-width: 34em;
-  font-size: clamp(18px, 2.1vw, 26px);
+  font-size: clamp(18px, 1.55vw, 30px);
   line-height: 1.45;
 }
 
@@ -333,6 +332,47 @@ body[data-screen="result"] .hud-layer {
 }
 
 /* ---------- landing ---------- */
+
+/* The 3D hero (board 1) sits behind the text; a dark gradient on the left keeps the text at
+   4.5:1 or better over the brightest part of the scene. */
+.hero {
+  position: fixed;
+  inset: 0;
+  width: 100vw;
+  height: 100dvh;
+  display: block;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.8s ease-out;
+}
+.hero.is-ready {
+  opacity: 1;
+}
+body[data-screen="landing"] .screen-layer {
+  background:
+    linear-gradient(0deg, rgba(11, 12, 16, 0.55), rgba(11, 12, 16, 0) 28%),
+    linear-gradient(
+      90deg,
+      rgba(11, 12, 16, 0.95) 0%,
+      rgba(11, 12, 16, 0.86) 30%,
+      rgba(11, 12, 16, 0.8) 47%,
+      rgba(11, 12, 16, 0.16) 66%,
+      rgba(11, 12, 16, 0.06) 100%
+    );
+}
+/* Wide screens: the text keeps to the dark left side, clear of the figures. */
+@media (min-width: 901px) {
+  .pitch,
+  .facts,
+  .landing .note {
+    max-width: 41vw;
+  }
+}
+@media (max-width: 900px) {
+  body[data-screen="landing"] .screen-layer {
+    background: rgba(11, 12, 16, 0.84);
+  }
+}
 
 .landing .actions {
   margin-top: 6px;
@@ -1188,6 +1228,7 @@ body.is-freeze .hud-layer::before {
 }
 
 @media (prefers-reduced-motion: reduce) {
+  .hero,
   .arena,
   .territory-bar span {
     transition: none;

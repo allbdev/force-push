@@ -20,6 +20,7 @@ import { shareText } from "./format";
 import { Hud } from "./hud";
 import { getLocale, setLocale, t } from "./i18n";
 import { bindKeyboard, InputState } from "./input";
+import type { HeroScene } from "./hero";
 import type { ArenaRenderer } from "./render3d";
 import {
   prNumberFor,
@@ -86,6 +87,9 @@ export class App {
   private session: Session | null = null;
   private renderer: ArenaRenderer | null = null;
   private rendererFailed = false;
+  private hero: HeroScene | null = null;
+  private heroCanvas: HTMLCanvasElement | null = null;
+  private heroState: "idle" | "loading" | "failed" = "idle";
   private hud: Hud | null = null;
   private screen: ScreenKind = "landing";
   private shownLobby: unknown = null;
@@ -185,6 +189,8 @@ export class App {
     this.screen = next;
     this.shownLobby = lobby;
     document.body.dataset.screen = next;
+    if (next === "landing") this.showHero();
+    else this.hideHero();
 
     if (next === "match" && entering) this.enterMatch();
     if (next !== "match" && next !== "result") this.leaveMatchView();
@@ -447,6 +453,42 @@ export class App {
     else finish(false);
   }
 
+  // ----- landing hero ------------------------------------------------------------------------
+
+  /** The 3D scene behind the landing. three.js loads after first paint; no WebGL, no scene. */
+  private showHero(): void {
+    if (this.hero || this.heroState !== "idle") return;
+    this.heroState = "loading";
+    import("./hero").then(
+      ({ HeroScene }) => {
+        this.heroState = "idle";
+        if (this.screen !== "landing" || this.hero) return;
+        const canvas = el("canvas", { class: "hero", "aria-hidden": "true" });
+        try {
+          this.hero = new HeroScene(canvas);
+        } catch {
+          this.heroState = "failed";
+          return;
+        }
+        this.heroCanvas = canvas;
+        this.root.insertBefore(canvas, this.canvas);
+        this.resize();
+        // Fade in on the next frame, once the first picture is on the canvas.
+        requestAnimationFrame(() => canvas.classList.add("is-ready"));
+      },
+      () => {
+        this.heroState = "failed";
+      },
+    );
+  }
+
+  private hideHero(): void {
+    this.hero?.dispose();
+    this.hero = null;
+    this.heroCanvas?.remove();
+    this.heroCanvas = null;
+  }
+
   // ----- match view --------------------------------------------------------------------------
 
   private async ensureRenderer(): Promise<ArenaRenderer | null> {
@@ -520,6 +562,11 @@ export class App {
     const w = window.innerWidth;
     const h = window.innerHeight;
     this.renderer?.resize(w, h);
+    if (this.hero) {
+      this.hero.resize(w, h);
+      // A still frame under reduced motion; otherwise the loop takes over from here.
+      this.hero.draw(this.reducedMotion ? 0 : this.last / 1000);
+    }
   }
 
   // ----- loop --------------------------------------------------------------------------------
@@ -577,6 +624,7 @@ export class App {
         this.hud?.update(s, client.predicted, this.hudInfo(), this.renderer);
       }
     }
+    if (this.hero && !this.reducedMotion) this.hero.draw(now / 1000);
     requestAnimationFrame((t2) => this.frame(t2));
   }
 
