@@ -4,7 +4,9 @@ Exports of the boards on the design canvas **"Force Push — Mockups"**: https:/
 
 The canvas, these files, `GAME_PLAN.md` and the game are kept in sync both ways (see `CLAUDE.md`).
 
-**For now every board is a drawn mockup** (3D renders with the interface laid over them), with PT-BR copy. Once the game draws a screen, its board becomes a capture from the game (`npm run designs`, roadmap Phase 7): PT-BR here, English in `en/`. The text boards (10–12) stay hand-edited on the canvas.
+**For now every board is a drawn mockup** (3D renders with the interface laid over them), with PT-BR copy. Once the game draws a screen, its board becomes a capture from the game (`npm run designs`, roadmap Phase 7): PT-BR here, English in `en/`. The text boards (10–13) stay hand-edited on the canvas.
+
+**Stale:** `11-Items.jpg` predates the rebase power-up added to the board on 22 Nov 2026, and `13-Floor.jpg` hasn't been exported. Listed in `TODO_FOR_YOU.md`.
 
 | File | Canvas page | Board | What it shows |
 |---|---|---|---|
@@ -20,3 +22,4 @@ The canvas, these files, `GAME_PLAN.md` and the game are kept in sync both ways 
 | `10-Characters.jpg` | Characters & items | The branches | The four blocky developers and their accessories |
 | `11-Items.jpg` | Characters & items | Items and blocks | Force-push, the five power-ups, legacy box, rack |
 | `12-Direction.jpg` | Art direction | Art direction | The look, against the other games, colour and font tokens |
+| `13-Floor.jpg` *(not exported yet)* | Floor patterns | Floor patterns | The per-branch floor patterns and how the floor reads under colour-blindness |

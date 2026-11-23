@@ -128,14 +128,14 @@ Sit on a white plate with a coloured ring so they read on painted floor (board "
 
 ### 6.5 Scoring: the diff
 
-- **`+`** counts tiles your blasts turned to your colour (repainting your own tile doesn't count). **`−`** counts tiles of yours that turned to someone else's colour (or froze).
+- **`+`** counts tiles that turned to your colour: painted by your blasts, or handed to you as someone's revert penalty (repainting your own tile doesn't count). **`−`** counts tiles of yours that turned to anything else: someone's colour, grey (your own revert penalty) or frozen.
 - So **`+` minus `−` is exactly the tiles you own at the end**. A test holds the core to it.
 - The HUD and the result show each branch's share **of the painted tiles** (grey tiles count for nobody), so the four shares add up to 100%.
 - Example (board 7): `main +212 −181` (31 tiles, 31%), `dev +190 −163` (27%), `hotfix +171 −148` (23%), `feature +140 −121` (19%).
 
 ### 6.6 Code freeze (second version)
 
-In the last 30 s the outer ring closes tile by tile, clockwise from the north-west corner, one tile every ~0.75 s. A closed tile is a wall and counts for nobody (`−` for its owner). Standing on a tile as it closes reverts you; respawn moves to the nearest open floor tile to your desk. The timer turns red and reads "code freeze in" (board 6).
+On in every room. In the last 30 s the outer ring closes tile by tile, clockwise from the north-west corner, one tile every 13 ticks (0.65 s) so the 44-tile ring closes just before the end. A closed tile is a wall and counts for nobody (`−` for its owner). Standing on a tile as it closes reverts you; respawn moves to the nearest open floor tile to your desk. Anyone halfway into a tile as it closes is stopped. The timer turns red and reads "code freeze in", the screen gets a red border, and the "Code freeze" banner shows for four seconds (board 6).
 
 ### 6.7 Bots
 
@@ -146,10 +146,11 @@ In the last 30 s the outer ring closes tile by tile, clockwise from the north-we
 ## 7. Rooms
 
 - **Code:** three letters and four digits, `FRI-1758`, generated without I or O in the letters so nobody reads them as 1 and 0 (typed codes accept any letters, so the board's `FRI-1758` is valid). The link is the game URL with `?room=FRI-1758`.
-- **Lobby** (board 2): the four seats with the branch, name and state ("ready", "choosing headphones…", "joins if nobody comes"), the map, the sprint length (2 / 3 / 5 min), **Start sprint** (the room's creator), **Leave**. A mock terminal reads the room's status (`3 of 4 ready. Waiting for Rafa.`).
+- **Lobby** (board 2): the four seats with the branch, name and state ("ready", "choosing headphones…", "joins if nobody comes"), the map with **Change map** (opens board 8), the sprint length (2 / 3 / 5 min, remembered), **Start sprint** (the host: the room's creator, or the next person if they leave; the host always counts as ready), **I'm ready** for everyone else, **Leave**. A mock terminal reads the room's status (`3 of 4 ready. Waiting for Rafa.`).
 - **Seats:** the first four to join get `main`, `feature`, `hotfix`, `dev` in that order. A room can start with one human; empty seats become bots.
 - **Names:** optional, up to 12 characters, letters, digits, space, `_` and `-` (any script), checked on the server. Shown to the other players only; nothing is kept after the room closes.
-- **Drop out mid-sprint:** a bot takes your seat until you come back with the same link.
+- **Drop out mid-sprint:** a bot takes your seat until you come back with the same link (the browser keeps a per-room token; the server hands the seat back and sends a snapshot).
+- **Full room:** a fifth person (up to 12 connections) watches as a spectator.
 - **Rematch:** the same room, a new seed. The room closes 5 minutes after the last player leaves.
 
 ## 8. Maps
@@ -162,7 +163,7 @@ Maps are JSON in `src/content/maps/`, validated when loaded: size, racks, desks,
 | 2 | Data Center | Data Center | More racks, narrow aisles. One good push paints half the map | Second |
 | 3 | Rooftop Happy Hour | Happy Hour no Terraço | Late afternoon. Wind pushes each force-push one tile, one second after it's dropped, if the tile is free | Second |
 
-**The daily map** (second version): drawn from the date (the player's local midnight) from the same pieces; the same for everyone. Bots must finish a match on it without getting stuck, or the generator re-rolls.
+**The daily map** (second version): drawn from the date (the player's local midnight) from the same pieces (grid, rack rows, an open plaza, or scattered extra racks with four-way symmetry; box density 45–65%; one day in four is windy), id `daily-YYYYMMDD`, the same for everyone. Bots play 40 seconds on it; if one gets stuck the generator re-rolls. Picked from the map select screen.
 
 ```jsonc
 {
@@ -185,8 +186,8 @@ The validator is hand-written (no schema library without asking) and rejects a d
 - **Result** (board 7): "Pull request #1758 · merged", "**main won** the sprint", one row per branch (tag, name, `+` and `−`, share), **Rematch**, **Change map**, **Share**, and highlights: biggest push, most reverted, legacy destroyed ("Nobody will miss it.").
 - **Share line** (draft):
   `Force Push · room FRI-1758` / `main won: +212 −181 (31%)` / `42 force-pushes · 2 reverts` / `force-push.vinicius-albuquerque.com.br`. PT-BR: `Force Push · sala FRI-1758` / `main venceu: +212 −181 (31%)`. Line 2 is the winner; line 3 is the sharer's own match.
-- **Highlight replay** (second version, board 4): after the result, the biggest push again with the camera down close ("force-push", `$ git push --force origin dev`, the tiles gained and lost). During play the camera never moves in.
-- **Replays** (second version): the match is its seed, map, version and input log, so a replay is a file or a link that runs `step` again. Untrusted input: length cap, strict parse, polite failure.
+- **Highlight replay** (second version, board 4): **Watch the biggest push** on the result plays the five seconds around it again with the camera down close ("force-push", `$ git push --force origin dev`, the tiles gained, the tiles lost per branch, boxes broken), then returns to the result. During play the camera never moves in.
+- **Replays** (second version): the match is its seed, map, version and input log, so a replay is a link (`?replay=…`, **Copy replay link** on the result) that runs `step` again: four seats to 20 bits per tick, run-length encoded, base64url; a 3-minute match fits in a link. Untrusted input: length cap, strict parse, polite failure.
 
 ## 10. Look
 
@@ -245,7 +246,8 @@ Both are OFL and self-hosted in the build (no runtime calls to Google Fonts).
   - The client keeps the last confirmed state, runs ahead with its own inputs applied at once (prediction), and when the server's inputs for a tick arrive it rolls back and re-runs. The state is a few hundred bytes of integers, so re-running a handful of ticks is cheap.
   - Other players are drawn from the confirmed state, interpolated, so they never jump.
   - The three-second fuse and tile movement tolerate 100–150 ms; the HUD shows ping.
-- **The server** only relays and validates: message size and rate caps, inputs that are five bits, names that pass the rule in §7, room codes that can't be guessed by scanning (rate-limited joins). It stores nothing.
+- **The wire** (`src/core/codec.ts`): an input is 6 bytes (type, `seq`, five bits); a tick is 25 bytes for four seats (tick, four input bytes, four acks); a hash 9 bytes; everything else strict JSON. Clients cap at 256 bytes per message.
+- **The server** (`server/`, a Cloudflare Worker with a Durable Object per room) only relays and validates: message size cap, a token bucket per connection (extra inputs are dropped quietly, other floods are struck and then disconnected), inputs that are five bits, names that pass the rule in §7, room codes that can't be guessed by scanning (joins rate-limited per address), and only the site's own pages may connect (Origin check). It stores nothing; a room is forgotten five minutes after it empties.
 - **Rendering** is three.js for the arena (instanced tiles, one directional light with shadows, models built by code); the HUD, lobby, result and menus are DOM (real `<button>`s, readable text, focusable).
 
 ## 12. Stack and conventions
