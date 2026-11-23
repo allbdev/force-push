@@ -145,7 +145,7 @@ In the last 30 s the outer ring closes tile by tile, clockwise from the north-we
 
 ## 7. Rooms
 
-- **Code:** three letters and four digits, `FRI-1758`, from an alphabet without look-alikes (no I/O/0/1 in the letters). The link is the game URL with `?room=FRI-1758`.
+- **Code:** three letters and four digits, `FRI-1758`, generated without I or O in the letters so nobody reads them as 1 and 0 (typed codes accept any letters, so the board's `FRI-1758` is valid). The link is the game URL with `?room=FRI-1758`.
 - **Lobby** (board 2): the four seats with the branch, name and state ("ready", "choosing headphones…", "joins if nobody comes"), the map, the sprint length (2 / 3 / 5 min), **Start sprint** (the room's creator), **Leave**. A mock terminal reads the room's status (`3 of 4 ready. Waiting for Rafa.`).
 - **Seats:** the first four to join get `main`, `feature`, `hotfix`, `dev` in that order. A room can start with one human; empty seats become bots.
 - **Names:** optional, up to 12 characters, letters, digits, space, `_` and `-` (any script), checked on the server. Shown to the other players only; nothing is kept after the room closes.
