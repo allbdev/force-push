@@ -199,6 +199,7 @@ A desk-toy office seen from above, with a code editor laid over it. (Canvas page
 - **Camera:** fixed three-quarter view of the whole map on wide screens. Phones (portrait): it follows you. It moves in close only in the highlight replay.
 - Against the other games: Dig to Japan is round cartoon, Um Buraco Só a photo, Cartório paper, Park the Cart a flyer. This one is a toy diorama plus a terminal.
 - Colour never carries meaning alone: every tag carries the branch name, and every diff has its sign.
+- **Floor patterns.** The colour-blind check (`npm run colours`, roadmap task 9) found hotfix and dev too close under deuteranopia (ΔE00 8.6, with grey near both), so each branch's painted tiles also carry a pattern (canvas page "Floor patterns").
 
 **Tokens**
 
@@ -217,6 +218,7 @@ A desk-toy office seen from above, with a code editor laid over it. (Canvas page
 | feature | `#ff9a1f` | Branch |
 | hotfix | `#ff4f93` | Branch |
 | dev | `#19c3a6` | Branch (text on any branch colour `#0d0e12`) |
+| floor | `#8c919c` | An unpainted floor tile (nobody's) |
 
 | Font | Use |
 |---|---|

@@ -18,15 +18,15 @@
 
 ## Phase 0 · Setup
 
-1. [ ] `git init`, public GitHub repo, MIT `LICENSE`, Git LFS (`.gitattributes` for the binary types), `.gitignore`; move the existing `designs/*.jpg` into LFS
-2. [ ] Vite + TypeScript strict scaffold (copy the setup from `../park-the-cart`); `src/core`, `src/content`, `src/net`, `src/ui`, `server/`, `tests/`, `public/`, `tools/`
-3. [ ] ESLint + Prettier, with a rule banning `Math.random`, `Date`, `performance.now` and DOM and network globals in `src/core`; `npm run check` (lint + typecheck + unit tests + build + size)
-4. [ ] Vitest + fast-check, first test; Playwright with a "page loads" smoke test (Chromium, Firefox, WebKit)
-5. [ ] GitHub Actions: `check` + e2e on every push/PR; deploy `main` to Cloudflare (a Worker serving `dist/` as static assets, on `force-push.vinicius-albuquerque.com.br`)
-6. [ ] Fonts self-hosted (Space Grotesk, JetBrains Mono; OFL, full PT-BR accents) and the colour tokens from `GAME_PLAN.md` §10 as CSS custom properties
-7. [ ] Locale layer: `t(key, slots)`, `en` default + `pt-BR`, toggle remembered in `localStorage`; test that both locales have the same keys and slots
-8. [ ] `tools/size-check.ts` (`npm run size`): bundle budget from `CLAUDE.md`, part of `check`
-9. [ ] Colour-blind check of the four branch colours on the floor (protanopia, deuteranopia, tritanopia); if two collide, try a per-branch floor pattern on a new canvas page first
+1. [x] `git init`, public GitHub repo, MIT `LICENSE`, Git LFS (`.gitattributes` for the binary types), `.gitignore`; move the existing `designs/*.jpg` into LFS
+2. [x] Vite + TypeScript strict scaffold (copy the setup from `../park-the-cart`); `src/core`, `src/content`, `src/net`, `src/ui`, `server/`, `tests/`, `public/`, `tools/`
+3. [x] ESLint + Prettier, with a rule banning `Math.random`, `Date`, `performance.now` and DOM and network globals in `src/core`; `npm run check` (lint + typecheck + unit tests + build + size)
+4. [x] Vitest + fast-check, first test; Playwright with a "page loads" smoke test (Chromium, Firefox, WebKit)
+5. [~] GitHub Actions (written; the deploy waits for the Cloudflare secrets in `TODO_FOR_YOU.md`): `check` + e2e on every push/PR; deploy `main` to Cloudflare (a Worker serving `dist/` as static assets, on `force-push.vinicius-albuquerque.com.br`)
+6. [x] Fonts self-hosted (Space Grotesk, JetBrains Mono; OFL, full PT-BR accents) and the colour tokens from `GAME_PLAN.md` §10 as CSS custom properties
+7. [x] Locale layer: `t(key, slots)`, `en` default + `pt-BR`, toggle remembered in `localStorage`; test that both locales have the same keys and slots
+8. [x] `tools/size-check.ts` (`npm run size`): bundle budget from `CLAUDE.md`, part of `check`
+9. [x] Colour-blind check of the four branch colours on the floor (protanopia, deuteranopia, tritanopia); if two collide, try a per-branch floor pattern on a new canvas page first. *Result (22 Nov 2026): hotfix/dev collide under deuteranopia (ΔE00 8.6) and grey sits close to dev and hotfix; floor tiles get per-branch patterns (task 20).*
 
 **Exit:** the empty page builds, deploys, and CI is green.
 

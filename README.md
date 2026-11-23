@@ -40,7 +40,15 @@ The write-up with the netcode diagram comes with the code (roadmap task 55).
 - **Node.js 22 LTS** and npm
 - **Git LFS** (the design JPGs are stored in LFS)
 
-Commands, controls and the project layout land with the scaffold (roadmap Phase 0).
+## Commands
+
+| Command | What it does |
+|---|---|
+| `npm run dev` | Dev server |
+| `npm run check` | Lint, typecheck, unit tests, build and the bundle-size budget (run before every commit) |
+| `npm run e2e` | Playwright in Chromium, Firefox, WebKit and a phone |
+| `npm run colours` | The colour-blind check of the floor colours |
+| `npm run deploy` | Build and deploy to Cloudflare (needs Wrangler credentials) |
 
 ## Contributing workflow
 
