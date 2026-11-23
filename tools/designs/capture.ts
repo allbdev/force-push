@@ -2,6 +2,7 @@
  * `npm run designs`: captures every screen board from the real game (roadmap task 52) with a fixed
  * seed, fixed inputs and a fixed tick, at board size, in both locales:
  *   design-captures/en/NN-Name.png and design-captures/pt-BR/NN-Name.png (+ .jpg on macOS, via sips)
+ * `npm run designs -- 02b` captures only the shots whose name contains "02b".
  * Then: compare with the canvas, and only replace a mockup with a capture that's at least as good
  * (CLAUDE.md, "no downgrades").
  */
@@ -57,6 +58,18 @@ const SHOTS: Shot[] = [
     run: async (p) => {
       await p.goto(`${BASE}/?test=1`);
       await p.getByTestId("create").click();
+      await p.waitForTimeout(2500);
+    },
+  },
+  {
+    name: "02b-Lobby-1v1",
+    viewport: DESKTOP,
+    run: async (p) => {
+      // The offline lobby set up for a 1v1: hotfix and dev closed, one bot on feature.
+      await p.goto(`${BASE}/?test=1`);
+      await p.getByTestId("practice").click();
+      await p.getByTestId("switch-2-closed").click();
+      await p.getByTestId("switch-3-closed").click();
       await p.waitForTimeout(2500);
     },
   },
@@ -166,7 +179,7 @@ async function main(): Promise<void> {
     const browser = await chromium.launch({ args: ["--use-gl=angle", "--use-angle=swiftshader"] });
     for (const locale of LOCALES) {
       mkdirSync(`${OUT}/${locale}`, { recursive: true });
-      for (const shot of SHOTS) {
+      for (const shot of SHOTS.filter((s) => !process.argv[2] || s.name.includes(process.argv[2]))) {
         const page = await browser.newPage({
           viewport: shot.viewport,
           deviceScaleFactor: 2,
