@@ -804,7 +804,7 @@ body.is-freeze .hud-layer::before {
 }
 .seats {
   display: grid;
-  grid-template-columns: repeat(4, minmax(130px, 176px));
+  grid-template-columns: repeat(4, minmax(120px, 176px));
   gap: 16px;
   margin: 0;
   padding: 0;
@@ -870,7 +870,7 @@ body.is-freeze .hud-layer::before {
   color: var(--add);
 }
 .lobby-side {
-  flex: 1 1 320px;
+  flex: 1 1 270px;
   display: flex;
   flex-direction: column;
   gap: 14px;
@@ -881,6 +881,10 @@ body.is-freeze .hud-layer::before {
   display: flex;
   flex-direction: column;
   gap: 10px;
+}
+.lobby-settings .row .btn-small {
+  flex: 1 1 0;
+  min-width: 0;
 }
 .map-row {
   display: flex;
