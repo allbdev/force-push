@@ -42,3 +42,26 @@ test("the hero is a still picture under reduced motion", async ({ page }) => {
   expect(second.equals(first)).toBe(true);
   expect(errors).toEqual([]);
 });
+
+test("the lobby shows a portrait or the placeholder on every seat", async ({ page }) => {
+  const errors = await open(page, "/");
+  await page.getByTestId("create").click();
+  await expect(page.getByTestId("seat-0")).toBeVisible({ timeout: 15_000 });
+  const art = page.locator(".seat-art");
+  await expect(art).toHaveCount(4);
+  // Portraits arrive a moment later where WebGL works; either way nothing is announced twice.
+  await page
+    .locator(".seat-art.has-portrait")
+    .first()
+    .waitFor({ timeout: 8_000 })
+    .catch(() => undefined);
+  const images = page.locator(".seat-art img");
+  const count = await images.count();
+  expect([0, 4]).toContain(count);
+  for (let i = 0; i < count; i++) {
+    await expect(images.nth(i)).toHaveAttribute("alt", "");
+    await expect(images.nth(i)).toHaveAttribute("src", /^data:image\/png;base64,/);
+  }
+  for (let i = 0; i < 4; i++) await expect(art.nth(i)).toHaveAttribute("aria-hidden", "true");
+  expect(errors).toEqual([]);
+});

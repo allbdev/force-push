@@ -209,11 +209,34 @@ export function lobbyStatus(lobby: LobbyView, me: number): string {
   return t("lobby.statusReady", { ready, total: humans.length });
 }
 
+/** A portrait is a picture we rendered ourselves: a PNG data URL or a blob URL, nothing else. */
+function isPortraitUrl(url: string | undefined): url is string {
+  return url !== undefined && (url.startsWith("data:image/png;base64,") || url.startsWith("blob:"));
+}
+
+/**
+ * Puts the rendered portraits (seat order) into every `.seat-art` under `root`, over the CSS
+ * placeholder figure. Seats without a usable picture keep the placeholder.
+ */
+export function showPortraits(root: ParentNode, portraits: readonly string[]): void {
+  BRANCHES.forEach((b, seat) => {
+    const url = portraits[seat];
+    if (!isPortraitUrl(url)) return;
+    for (const art of root.querySelectorAll(`.seat-art-${b}`)) {
+      if (art.querySelector("img")) continue;
+      const img = el("img", { class: "seat-portrait", alt: "", decoding: "async" });
+      img.src = url;
+      art.replaceChildren(img);
+      art.classList.add("has-portrait");
+    }
+  });
+}
+
 export function renderLobby(
   lobby: LobbyView,
   me: number,
   h: LobbyHandlers,
-  opts: { offline: boolean; copied: string },
+  opts: { offline: boolean; copied: string; portraits?: readonly string[] | null },
 ): HTMLElement {
   const isHost = me === lobby.host;
   const seats = el(
@@ -237,6 +260,7 @@ export function renderLobby(
       );
     }),
   );
+  if (opts.portraits) showPortraits(seats, opts.portraits);
 
   const map = mapById(lobby.mapId) ?? MAPS[0]!;
   const minuteButtons = RULES.sprintMinutes.map((m) =>

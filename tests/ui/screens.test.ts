@@ -11,6 +11,7 @@ import {
   renderLanding,
   renderLobby,
   renderResult,
+  showPortraits,
 } from "../../src/ui/screens";
 
 const landing = (over: Partial<Parameters<typeof renderLanding>[0]> = {}) => ({
@@ -137,6 +138,76 @@ describe("lobby (board 2)", () => {
     expect(h.onReady).toHaveBeenCalledWith(true);
     for (const b of root.querySelectorAll<HTMLButtonElement>(".lobby-settings button"))
       expect(b.disabled).toBe(true);
+  });
+});
+
+describe("seat portraits (board 2)", () => {
+  const handlers = () => ({
+    onReady: vi.fn(),
+    onSettings: vi.fn(),
+    onStart: vi.fn(),
+    onLeave: vi.fn(),
+    onCopyLink: vi.fn(),
+    onPickMap: vi.fn(),
+  });
+  const png = (n: number) => `data:image/png;base64,AAAA${n}`;
+  const four = [png(0), png(1), png(2), png(3)];
+
+  it("keeps the placeholder figure until the portraits are rendered", () => {
+    const root = renderLobby(lobby(), 0, handlers(), { offline: false, copied: "" });
+    expect(root.querySelectorAll(".seat-art")).toHaveLength(4);
+    expect(root.querySelectorAll(".seat-art img")).toHaveLength(0);
+    expect(root.querySelectorAll(".has-portrait")).toHaveLength(0);
+    const none = renderLobby(lobby(), 0, handlers(), {
+      offline: false,
+      copied: "",
+      portraits: null,
+    });
+    expect(none.querySelectorAll(".seat-art img")).toHaveLength(0);
+  });
+
+  it("shows each seat's portrait as a decorative image, in seat order", () => {
+    const root = renderLobby(lobby(), 0, handlers(), {
+      offline: false,
+      copied: "",
+      portraits: four,
+    });
+    const images = [...root.querySelectorAll<HTMLImageElement>(".seat-art img")];
+    expect(images.map((img) => img.getAttribute("src"))).toEqual(four);
+    for (const img of images) {
+      expect(img.getAttribute("alt")).toBe("");
+      expect(img.parentElement!.classList.contains("has-portrait")).toBe(true);
+      expect(img.parentElement!.getAttribute("aria-hidden")).toBe("true");
+    }
+    expect(root.querySelector(".seat-art-hotfix img")!.getAttribute("src")).toBe(png(2));
+    // The seat is still named by its label, not by the picture.
+    expect(root.querySelector("[data-testid=seat-0]")!.getAttribute("aria-label")).toBe(
+      "main: you, ready",
+    );
+  });
+
+  it("fills a lobby that is already on screen, once", () => {
+    const root = renderLobby(lobby(), 0, handlers(), { offline: false, copied: "" });
+    showPortraits(root, four);
+    showPortraits(root, four);
+    expect(root.querySelectorAll(".seat-art img")).toHaveLength(4);
+  });
+
+  it("only takes pictures we rendered: PNG data URLs and blob URLs", () => {
+    const root = renderLobby(lobby(), 0, handlers(), { offline: false, copied: "" });
+    showPortraits(root, [
+      "https://example.com/tracker.png",
+      "javascript:alert(1)",
+      "blob:http://localhost/1b2c",
+      "data:text/html;base64,AAAA",
+    ]);
+    const images = [...root.querySelectorAll<HTMLImageElement>(".seat-art img")];
+    expect(images.map((img) => img.getAttribute("src"))).toEqual(["blob:http://localhost/1b2c"]);
+    expect(root.querySelectorAll(".has-portrait")).toHaveLength(1);
+    // A short list leaves the other seats alone.
+    const other = renderLobby(lobby(), 0, handlers(), { offline: false, copied: "" });
+    showPortraits(other, [png(0)]);
+    expect(other.querySelectorAll(".seat-art img")).toHaveLength(1);
   });
 });
 

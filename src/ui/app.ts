@@ -26,6 +26,7 @@ import {
   prNumberFor,
   renderLanding,
   renderLobby,
+  showPortraits,
   renderMapSelect,
   renderMenu,
   renderHighlight,
@@ -43,6 +44,8 @@ import { browserStore, loadMinutes, loadName, saveLocale, saveMinutes, saveName 
 import { buildTouchControls, hasTouch } from "./touch";
 
 const TICK_MS = 1000 / TICKS_PER_SECOND;
+/** Seat portraits are drawn at twice their largest size on screen. */
+const PORTRAIT_SIZE = 320;
 
 export type AppOptions = {
   readonly params: URLSearchParams;
@@ -90,6 +93,8 @@ export class App {
   private hero: HeroScene | null = null;
   private heroCanvas: HTMLCanvasElement | null = null;
   private heroState: "idle" | "loading" | "failed" = "idle";
+  private portraits: readonly string[] | null = null;
+  private portraitsAsked = false;
   private hud: Hud | null = null;
   private screen: ScreenKind = "landing";
   private shownLobby: unknown = null;
@@ -191,6 +196,7 @@ export class App {
     document.body.dataset.screen = next;
     if (next === "landing") this.showHero();
     else this.hideHero();
+    if (next === "lobby") this.loadPortraits();
 
     if (next === "match" && entering) this.enterMatch();
     if (next !== "match" && next !== "result") this.leaveMatchView();
@@ -257,7 +263,7 @@ export class App {
                 this.renderScreen(true);
               },
             },
-            { offline: this.session!.offline, copied: this.copied },
+            { offline: this.session!.offline, copied: this.copied, portraits: this.portraits },
           ),
         );
         break;
@@ -453,7 +459,7 @@ export class App {
     else finish(false);
   }
 
-  // ----- landing hero ------------------------------------------------------------------------
+  // ----- landing hero and lobby portraits ----------------------------------------------------
 
   /** The 3D scene behind the landing. three.js loads after first paint; no WebGL, no scene. */
   private showHero(): void {
@@ -487,6 +493,23 @@ export class App {
     this.hero = null;
     this.heroCanvas?.remove();
     this.heroCanvas = null;
+  }
+
+  /** Renders the four seat portraits once and drops them into the lobby that's on screen. */
+  private loadPortraits(): void {
+    if (this.portraitsAsked) return;
+    this.portraitsAsked = true;
+    import("./portraits")
+      .then(({ renderPortraits }) => renderPortraits(PORTRAIT_SIZE))
+      .then(
+        (urls) => {
+          this.portraits = urls;
+          showPortraits(this.screenLayer, urls);
+        },
+        () => {
+          // No WebGL: the CSS placeholder figures stay.
+        },
+      );
   }
 
   // ----- match view --------------------------------------------------------------------------

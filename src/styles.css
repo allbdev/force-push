@@ -819,11 +819,20 @@ body.is-freeze .hud-layer::before {
 }
 .seat-art {
   width: 100%;
-  height: 120px;
+  aspect-ratio: 1;
   border-radius: 6px;
   background: #aab3c2;
   position: relative;
   overflow: hidden;
+}
+.seat-art.has-portrait::after {
+  content: none;
+}
+.seat-portrait {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
 }
 .seat-art::after {
   content: "";
@@ -945,6 +954,7 @@ body.is-freeze .hud-layer::before {
   .seat-art {
     grid-row: span 2;
     height: 64px;
+    aspect-ratio: auto;
   }
   .seat-art::after {
     width: 22px;
