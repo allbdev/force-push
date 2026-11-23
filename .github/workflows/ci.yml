@@ -8,6 +8,9 @@ on:
 permissions:
   contents: read
 
+env:
+  WRANGLER_SEND_METRICS: "false"
+
 concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: true
