@@ -1,0 +1,9 @@
+{
+  "id": "open-space",
+  "size": [13, 11],
+  "racks": "grid",
+  "desks": { "main": [0, 0], "feature": [12, 0], "hotfix": [0, 10], "dev": [12, 10] },
+  "boxes": { "density": 0.6, "clear": 2 },
+  "drops": { "rate": 0.3, "weights": { "coffee": 4, "duck": 2, "stackOverflow": 4 } },
+  "wind": null
+}

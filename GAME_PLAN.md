@@ -88,7 +88,7 @@ All numbers are first drafts, in ticks (20 per second) in the code.
 
 ### 6.1 The grid
 
-- **Open Space:** 13 × 11 tiles inside the walls. Server racks stand on every other tile (x and y both odd: 30 racks), leaving 113 floor tiles. Legacy boxes ("LEGACY · NÃO MEXER") cover about 60% of the free floor, drawn from the match seed, except each desk's corner and the two tiles next to it.
+- **Open Space:** 13 × 11 tiles inside the walls. Server racks stand on every other tile (x and y both odd: 30 racks), leaving 113 floor tiles. Legacy boxes ("LEGACY · NÃO MEXER") cover about 60% of the free floor, drawn from the match seed, except the tiles within two steps of each desk (so the first push has a safe corner to hide behind): 56 boxes, 17 of them hiding a power-up.
 - **Desks:** one per branch, in the four corners. You start and respawn there.
 - **Racks** never break and stop blasts. **Boxes** break when a blast reaches them; 30% hide a power-up (seeded).
 
@@ -170,7 +170,7 @@ Maps are JSON in `src/content/maps/`, validated when loaded: size, racks, desks,
   "size": [13, 11],                     // tiles inside the walls; x right, y down
   "racks": "grid",                      // or an explicit list of [x, y]
   "desks": { "main": [0, 0], "feature": [12, 0], "hotfix": [0, 10], "dev": [12, 10] },
-  "boxes": { "density": 0.6, "clear": 2 },  // around each desk
+  "boxes": { "density": 0.6, "clear": 2 },  // no boxes within 2 steps of a desk
   "drops": { "rate": 0.3, "weights": { "coffee": 4, "duck": 2, "stackOverflow": 4 } },
   "wind": null                          // rooftop: { "dir": "east", "delay": 20 }
 }
