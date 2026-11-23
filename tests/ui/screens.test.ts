@@ -197,3 +197,36 @@ describe("map select (board 8)", () => {
     expect(onBack).toHaveBeenCalled();
   });
 });
+
+describe("menu and highlight", () => {
+  it("the menu is a labelled modal dialog that focuses 'back to the sprint'", async () => {
+    const { renderMenu } = await import("../../src/ui/screens");
+    setLocale("en");
+    const onResume = vi.fn();
+    const root = renderMenu(onResume, vi.fn(), vi.fn());
+    document.body.append(root);
+    await Promise.resolve();
+    expect(root.getAttribute("role")).toBe("dialog");
+    expect(root.getAttribute("aria-modal")).toBe("true");
+    expect(document.getElementById(root.getAttribute("aria-labelledby")!)!.textContent).toBe(
+      "Menu",
+    );
+    expect(document.activeElement?.textContent).toBe("Back to the sprint");
+    buttonsHaveNames(root);
+    root.remove();
+  });
+
+  it("the highlight overlay lists the push's diff per branch (board 4)", async () => {
+    const { renderHighlight } = await import("../../src/ui/screens");
+    setLocale("pt-BR");
+    const root = renderHighlight({ seat: 3, gained: 9, lost: [0, 5, 0, 0], boxes: 1 }, vi.fn());
+    const text = root.textContent!;
+    expect(text).toContain("$ git push --force origin dev");
+    expect(text).toContain("+ 9 tiles    dev");
+    expect(text).toContain("− 5 tiles    feature");
+    expect(text).toContain("legado/NÃO_MEXER");
+    expect(text).toContain("A câmera só aproxima");
+    buttonsHaveNames(root);
+    setLocale("en");
+  });
+});

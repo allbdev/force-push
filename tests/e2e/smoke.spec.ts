@@ -64,3 +64,42 @@ test("watching an all-bot match", async ({ page }) => {
     .toBeGreaterThan(100);
   expect(errors).toEqual([]);
 });
+
+test("the menu opens with Esc, traps nothing, and closes with Esc", async ({ page }) => {
+  await open(page, "/?offline=1&test=1&seed=2");
+  await expect(page.getByTestId("timer")).toBeVisible();
+  await page.keyboard.press("Escape");
+  await expect(page.getByRole("dialog")).toBeVisible();
+  await expect(page.getByTestId("resume")).toBeFocused();
+  await page.keyboard.press("Escape");
+  await expect(page.getByRole("dialog")).toHaveCount(0);
+});
+
+test("prefers-reduced-motion turns the transitions off", async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await open(page, "/?offline=1&test=1&seed=2");
+  await expect(page.getByTestId("timer")).toBeVisible();
+  const transition = await page
+    .locator(".territory-bar span")
+    .first()
+    .evaluate((n) => getComputedStyle(n).transitionDuration);
+  expect(transition).toBe("0s");
+});
+
+test("the landing can be used with the keyboard alone", async ({ page }) => {
+  await open(page, "/");
+  await page.keyboard.press("Tab");
+  const order: string[] = [];
+  for (let k = 0; k < 6; k++) {
+    order.push(
+      await page.evaluate(
+        () =>
+          document.activeElement?.getAttribute("data-testid") ??
+          document.activeElement?.tagName ??
+          "",
+      ),
+    );
+    await page.keyboard.press("Tab");
+  }
+  expect(order).toEqual(expect.arrayContaining(["lang", "name", "create", "join", "practice"]));
+});
