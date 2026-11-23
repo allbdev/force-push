@@ -1,0 +1,13 @@
+// Cloudflare Worker for Force Push (GAME_PLAN.md D6): serves the built client as static assets.
+// The rooms (one Durable Object each) join this same Worker in Phase 3.
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "force-push",
+  "compatibility_date": "2026-11-01",
+  "assets": {
+    "directory": "./dist",
+    "not_found_handling": "single-page-application",
+  },
+  "routes": [{ "pattern": "force-push.vinicius-albuquerque.com.br", "custom_domain": true }],
+  "observability": { "enabled": true },
+}
