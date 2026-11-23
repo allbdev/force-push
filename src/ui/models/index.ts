@@ -5,4 +5,5 @@ export * from "./desk";
 export * from "./developer";
 export * from "./duck";
 export * from "./pixel-texture";
+export * from "./power-ups";
 export * from "./rack";
