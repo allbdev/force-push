@@ -86,7 +86,9 @@ test("prefers-reduced-motion turns the transitions off", async ({ page }) => {
   expect(transition).toBe("0s");
 });
 
-test("the landing can be used with the keyboard alone", async ({ page }) => {
+test("the landing can be used with the keyboard alone", async ({ page, browserName }) => {
+  // WebKit on macOS only tabs to buttons with Option+Tab (a system setting), not plain Tab.
+  test.skip(browserName === "webkit", "WebKit tabs to buttons only with Option+Tab on macOS");
   await open(page, "/");
   await page.keyboard.press("Tab");
   const order: string[] = [];
