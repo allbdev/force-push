@@ -60,7 +60,7 @@
 22. [x] Match HUD (board 3): timer, territory bar, room code, name tags, "push -f in Ns", "+N tiles → branch", floor labels, commit log, pushes and range, control hint
 23. [x] Reverted (board 5): desaturated arena, `$ git revert`, who did it, countdown, the penalty line
 24. [x] Result (board 7): PR header, winner, per-branch diff and share, highlights, rematch / change map / share; share line localised at the edge
-25. [~] Landing (board 1): title, the `<<<<<<< HEAD` frame, create room / join with code, branch tags, language toggle; in this phase "create room" starts an offline room with bots
+25. [x] Landing (board 1): title, the `<<<<<<< HEAD` frame, create room / join with code, branch tags, language toggle; in this phase "create room" starts an offline room with bots
 26. [x] Touch controls and the portrait layout (board "Phone layouts"): four-way stick, push button, the camera that follows you; a real-phone check goes in `TODO_FOR_YOU.md`
 
 **Exit (in `TODO_FOR_YOU.md`):** the developer plays the slice on desktop and on a phone, against bots, and the result screen makes them want a rematch.
@@ -90,7 +90,7 @@
 38. [x] `prefers-reduced-motion`: no screen shake, fewer particles
 39. [x] Settings saved in `localStorage` (name, language, sprint length), corrupt-storage tests
 40. [~] Performance budget check (bundle size, 60 fps and load on a mid-range phone; real phone check in `TODO_FOR_YOU.md`) (*bundle ≈170 KB of 250 KB*)
-41. [~] Open Graph image and meta tags for link previews, in both locales
+41. [x] Open Graph image and meta tags for link previews, in both locales
 
 **Exit:** the first version from `GAME_PLAN.md` §4 is playable online end to end on desktop and phone, in both languages.
 
@@ -112,8 +112,8 @@
 
 > Claude makes the art by code (`GAME_PLAN.md` D12).
 
-49. [~] The office around the arena: desks, monitors, chairs, glass walls, plants; daylight and shadows to match board 3
-50. [~] Painted-tile glow, blast flash and box debris; landing hero scene (board 1)
+49. [x] The office around the arena: desks, monitors, chairs, glass walls, plants; daylight and shadows to match board 3
+50. [x] Painted-tile glow, blast flash and box debris; landing hero scene (board 1)
 51. [ ] Character kit shared with Deploy na Sexta (one module, both games)
 
 ---

@@ -13,7 +13,9 @@
   - *Slice test* (end of Phase 2): on desktop and on a phone. Does the result make you want a rematch?
   - *Online test* (end of Phase 3): two people on two phones over 4G, plus two bots, once it's deployed.
 - [ ] **Read `GAME_PLAN.md` §6 (the rules).** Every number is a first draft: fuse 3 s, range 2, 2 pushes carried, 4 s out after a revert, 3 penalty tiles, coffee 10 s, 30% of boxes hide a power-up, the code freeze on in every room. Tell me anything that feels wrong.
-- [ ] **Stale JPG exports:** `designs/07-Result.jpg` (the share line now shows the domain), `designs/11-Items.jpg` (the board gained the rebase power-up) and the new board *Floor patterns* (export it as `designs/13-Floor.jpg`). I can't export boards from the canvas myself. `npm run designs` captures every screen from the real game into `design-captures/` (PNG + JPG, both locales) if you'd rather use captures for the screen boards (roadmap task 53).
+- [ ] **Stale JPG exports:** the canvas was updated to match the game on 22 Nov 2026, so these exports are behind it: `designs/01-Main.jpg` (name field, "Jogar contra bots"), `02-Lobby.jpg` ("Trocar mapa"), `07-Result.jpg` (domain in the share line; "Ver o maior push" and "Copiar link do replay"), `11-Items.jpg` (rebase), and the new *Floor patterns* board (export as `designs/13-Floor.jpg`). I can't export boards myself. `npm run designs` captures every screen from the real game into `design-captures/` (PNG + JPG, both locales) if you'd rather replace the screen mockups with captures (roadmap task 53; your call, no downgrades).
+- [ ] **One-line canvas fix I wasn't allowed to publish:** on board *1 · Landing* the name field has `maxlength="16"`; the game caps names at 12. Change it to 12 (or tell me to retry).
+- [ ] **Look at the boards I changed** on the canvas: *1 · Landing*, *2 · Lobby*, *7 · Result*, *Items and blocks* (rebase) and the new page *Floor patterns*.
 
 ## Decisions (quick)
 
