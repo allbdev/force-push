@@ -1,5 +1,16 @@
 import { describe, expect, it } from "vitest";
-import { loadLocale, preferredLocale, saveLocale, type KeyValueStore } from "../../src/ui/store";
+import {
+  loadLocale,
+  loadMinutes,
+  loadName,
+  loadToken,
+  preferredLocale,
+  saveLocale,
+  saveMinutes,
+  saveName,
+  saveToken,
+  type KeyValueStore,
+} from "../../src/ui/store";
 
 function memory(
   initial: Record<string, string> = {},
@@ -47,5 +58,36 @@ describe("locale storage", () => {
     expect(() => saveLocale(throwing, "en")).not.toThrow();
     expect(loadLocale(null, ["en"])).toBe("en");
     expect(() => saveLocale(null, "en")).not.toThrow();
+  });
+});
+
+describe("other settings", () => {
+  it("remember the name, cleaned on the way in and out", () => {
+    const store = memory();
+    saveName(store, "  Ana  ");
+    expect(loadName(store)).toBe("Ana");
+    expect(loadName(memory({ "force-push:name": "<script>alert(1)</script>" }))).toBe("");
+    expect(loadName(throwing)).toBe("");
+  });
+
+  it("remember the sprint length, ignoring anything but 2, 3 or 5", () => {
+    const store = memory();
+    saveMinutes(store, 5);
+    expect(loadMinutes(store)).toBe(5);
+    saveMinutes(store, 9);
+    expect(loadMinutes(store)).toBe(5);
+    for (const junk of ["", "7", "NaN", "3.5", "{}"])
+      expect(loadMinutes(memory({ "force-push:minutes": junk }))).toBe(3);
+    expect(loadMinutes(throwing)).toBe(3);
+  });
+
+  it("keep a rejoin token per room, only well-formed ones", () => {
+    const store = memory();
+    saveToken(store, "FRI-1758", "abc123");
+    expect(loadToken(store, "FRI-1758")).toBe("abc123");
+    expect(loadToken(store, "XYZ-0001")).toBe("");
+    saveToken(store, "FRI-1758", "<bad>");
+    expect(loadToken(store, "FRI-1758")).toBe("abc123");
+    expect(loadToken(memory({ "force-push:token:FRI-1758": "../../x" }), "FRI-1758")).toBe("");
   });
 });

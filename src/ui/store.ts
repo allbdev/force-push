@@ -1,5 +1,6 @@
 import { DEFAULT_LOCALE, isLocale, type Locale } from "../content/i18n";
 import { cleanName } from "../core/names";
+import { RULES } from "../content/rules";
 
 /**
  * Per-player conveniences in localStorage, always behind try/catch: storage can be missing,
@@ -11,6 +12,7 @@ const KEYS = {
   locale: "force-push:locale",
   name: "force-push:name",
   token: "force-push:token:",
+  minutes: "force-push:minutes",
 } as const;
 
 /** The browser's storage, or null when touching it throws (private mode, blocked cookies). */
@@ -74,4 +76,15 @@ export function loadToken(store: KeyValueStore | null, code: string): string {
 export function saveToken(store: KeyValueStore | null, code: string, token: string): void {
   if (/^[A-Z]{3}-\d{4}$/.test(code) && /^[a-z0-9]{1,64}$/.test(token))
     write(store, KEYS.token + code, token);
+}
+
+/** The last sprint length the player picked (2, 3 or 5), or the default. */
+export function loadMinutes(store: KeyValueStore | null): number {
+  const v = Number(read(store, KEYS.minutes));
+  return (RULES.sprintMinutes as readonly number[]).includes(v) ? v : RULES.defaultSprintMinutes;
+}
+
+export function saveMinutes(store: KeyValueStore | null, minutes: number): void {
+  if ((RULES.sprintMinutes as readonly number[]).includes(minutes))
+    write(store, KEYS.minutes, String(minutes));
 }

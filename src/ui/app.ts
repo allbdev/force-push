@@ -38,7 +38,7 @@ import {
   ReplaySession,
   type Highlight,
 } from "./replay-session";
-import { browserStore, loadName, saveLocale, saveName } from "./store";
+import { browserStore, loadMinutes, loadName, saveLocale, saveMinutes, saveName } from "./store";
 import { buildTouchControls, hasTouch } from "./touch";
 
 const TICK_MS = 1000 / TICKS_PER_SECOND;
@@ -99,6 +99,7 @@ export class App {
   private offlineNote = false;
   private closedNote = false;
   private pickingMap = false;
+  private appliedMinutes = false;
   private replayBroken = false;
   private mainSession: Session | null = null;
   private highlight: Highlight | null = null;
@@ -167,6 +168,18 @@ export class App {
       else next = "lobby";
     }
     const lobby = client?.lobby ?? null;
+    // The host's last sprint length, applied once when their lobby first arrives.
+    if (
+      client &&
+      lobby &&
+      !this.appliedMinutes &&
+      lobby.phase === "lobby" &&
+      client.seat === lobby.host
+    ) {
+      this.appliedMinutes = true;
+      const minutes = loadMinutes(this.store);
+      if (minutes !== lobby.minutes) client.send({ t: "settings", mapId: lobby.mapId, minutes });
+    }
     if (!force && next === this.screen && lobby === this.shownLobby) return;
     const entering = next !== this.screen;
     this.screen = next;
@@ -226,7 +239,10 @@ export class App {
             client.seat,
             {
               onReady: (ready) => client.send({ t: "ready", ready }),
-              onSettings: (mapId, minutes) => client.send({ t: "settings", mapId, minutes }),
+              onSettings: (mapId, minutes) => {
+                saveMinutes(this.store, minutes);
+                client.send({ t: "settings", mapId, minutes });
+              },
               onStart: () => client.send({ t: "start" }),
               onLeave: () => this.leave(),
               onCopyLink: () => this.copyLink(),
@@ -322,6 +338,7 @@ export class App {
 
   private open(session: Session, name: string): void {
     this.session?.close();
+    this.appliedMinutes = false;
     this.session = session;
     saveName(this.store, cleanName(name));
     session.onStatus = (status) => {
