@@ -31,7 +31,7 @@ import { POWER_UPS } from "../content/power-ups";
 import { RULES } from "../content/rules";
 import { BOX, FROZEN, RACK } from "../core/map";
 import type { GameEvent, GameState } from "../core/state";
-import { followFraming, isPortrait, overviewFraming, type Framing } from "./camera";
+import { closeFraming, followFraming, isPortrait, overviewFraming, type Framing } from "./camera";
 import { patternTexture } from "./floor-texture";
 import {
   BLAST_HEIGHT,
@@ -69,6 +69,8 @@ export type View = {
   /** 0..1 between the previous and the current tick. */
   readonly alpha: number;
   readonly reducedMotion: boolean;
+  /** The highlight replay's close camera, over this tile. */
+  readonly closeUp?: Point | null;
 };
 
 type Debris = { group: Group; age: number };
@@ -461,7 +463,9 @@ export class ArenaRenderer {
   private frame(view: View, dt: number): void {
     const aspect = this.width / Math.max(1, this.height);
     let target: Framing;
-    if (isPortrait(this.width, this.height) && view.seat >= 0) {
+    if (view.closeUp) {
+      target = closeFraming(view.closeUp.x, view.closeUp.y);
+    } else if (isPortrait(this.width, this.height) && view.seat >= 0) {
       const me = this.drawn[view.seat] ?? { x: this.cols / 2, y: this.rows / 2 };
       target = followFraming(me.x, me.y, this.cols, this.rows, aspect);
     } else {

@@ -61,3 +61,8 @@ export function followFraming(
     fov: FOV,
   };
 }
+
+/** The end-of-match highlight (board 4): down close over the push, the only time the camera moves in. */
+export function closeFraming(x: number, z: number): Framing {
+  return { at: [x, 0.3, z + 0.2], from: [x - 0.6, 3.4, z + 3.6], fov: 42 };
+}

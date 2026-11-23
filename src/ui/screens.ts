@@ -49,7 +49,7 @@ function tags(): HTMLElement {
 
 export function renderLanding(
   h: LandingHandlers,
-  opts: { name: string; offline: boolean; code: string | null; closed?: boolean },
+  opts: { name: string; offline: boolean; code: string | null; closed?: boolean; broken?: boolean },
 ): HTMLElement {
   const nameInput = el("input", {
     id: "player-name",
@@ -148,6 +148,7 @@ export function renderLanding(
     joinForm,
     opts.offline ? el("p", { class: "note", role: "status" }, t("landing.offline")) : el("span"),
     opts.closed ? el("p", { class: "note", role: "status" }, t("connection.closed")) : el("span"),
+    opts.broken ? el("p", { class: "note", role: "status" }, t("replay.broken")) : el("span"),
     el("div", { class: "facts" }, tags(), el("p", {}, t("landing.facts"))),
     el(
       "a",
@@ -427,6 +428,9 @@ export type ResultHandlers = {
   readonly onRematch: () => void;
   readonly onChangeMap: () => void;
   readonly onShare: () => void;
+  /** Present when the whole match was seen, so it can be replayed. */
+  readonly onHighlight?: () => void;
+  readonly onCopyReplay?: () => void;
 };
 
 export function renderResult(
@@ -534,6 +538,22 @@ export function renderResult(
         : t("result.neverReverted"),
     ),
     el("p", {}, t("result.legacy", { n: result.boxes })),
+    h.onHighlight || h.onCopyReplay
+      ? el(
+          "div",
+          { class: "row" },
+          h.onHighlight && result.bestGain > 0
+            ? button(t("result.watchHighlight"), "btn btn-small", h.onHighlight, {
+                "data-testid": "watch-highlight",
+              })
+            : el("span"),
+          h.onCopyReplay
+            ? button(t("result.copyReplay"), "btn btn-small btn-quiet", h.onCopyReplay, {
+                "data-testid": "copy-replay",
+              })
+            : el("span"),
+        )
+      : el("span"),
   );
 
   const isHost = !lobby || lobby.host === me;
@@ -614,3 +634,38 @@ export function prNumberFor(code: string | null, seed: number): number {
 }
 
 void getLocale;
+
+/** The highlight replay overlay (board 4): the push, its diff, and the camera note. */
+export function renderHighlight(
+  h: { seat: number; gained: number; lost: readonly number[]; boxes: number },
+  onBack: () => void,
+): HTMLElement {
+  const lines = [
+    el("div", {}, t("highlight.command", { branch: branchName(h.seat) })),
+    el(
+      "div",
+      { class: "term-ok" },
+      t("highlight.gain", { n: h.gained, branch: branchName(h.seat) }),
+    ),
+    ...h.lost.flatMap((n, seat) =>
+      n > 0
+        ? [el("div", { class: "term-bad" }, t("highlight.loss", { n, branch: branchName(seat) }))]
+        : [],
+    ),
+    h.boxes > 0
+      ? el("div", { class: "term-bad" }, t("highlight.boxes", { n: h.boxes }))
+      : el("span"),
+  ];
+  return el(
+    "div",
+    { class: "highlight", "data-testid": "highlight" },
+    el(
+      "div",
+      { class: "hl-main" },
+      el("h2", { class: "hl-title" }, t("highlight.title")),
+      el("div", { class: "panel terminal hl-terminal" }, ...lines),
+      button(t("highlight.back"), "btn", onBack, { "data-testid": "highlight-back" }),
+    ),
+    el("p", { class: "panel hl-note" }, t("highlight.note")),
+  );
+}

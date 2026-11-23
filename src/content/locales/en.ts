@@ -143,6 +143,9 @@ const en = {
     rematchWaiting: "{n} of {total} want a rematch.",
     rematchHost: "Waiting for the host.",
     territory: "Final territory: {list}",
+    watchHighlight: "Watch the biggest push",
+    copyReplay: "Copy replay link",
+    replayCopied: "Replay link copied",
   },
   share: {
     room: "Force Push · room {code}",
@@ -173,6 +176,19 @@ const en = {
   freeze: {
     title: "Code freeze",
     note: "Last 30 seconds: the edge of the map closes, tile by tile. Whatever is painted there stops counting.",
+  },
+  highlight: {
+    title: "force-push",
+    command: "$ git push --force origin {branch}",
+    gain: "+ {n} tiles    {branch}",
+    loss: "− {n} tiles    {branch}",
+    boxes: "− {n} boxes    legacy/DO_NOT_TOUCH",
+    note: "The camera only moves in for the end-of-match replay. During play the view is always from above.",
+    back: "Back to the result",
+  },
+  replay: {
+    label: "replay",
+    broken: "That replay link doesn't work. It may be from an older version of the game.",
   },
   connection: {
     connecting: "Connecting…",

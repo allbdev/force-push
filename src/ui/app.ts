@@ -13,7 +13,8 @@ import { parseRoomCode } from "../core/room-code";
 import { scoreMatch } from "../core/score";
 import { shareData } from "../core/share";
 import { cleanName } from "../core/names";
-import { hashState, type GameState } from "../core/state";
+import { hashState, SEATS, type GameState } from "../core/state";
+import { decodeReplay, encodeReplay, replayState } from "../core/replay";
 import { el } from "./dom";
 import { shareText } from "./format";
 import { Hud } from "./hud";
@@ -26,9 +27,17 @@ import {
   renderLobby,
   renderMapSelect,
   renderMenu,
+  renderHighlight,
   renderResult,
 } from "./screens";
 import { cryptoRandom, LocalSession, type Session } from "./session";
+import {
+  findHighlight,
+  HIGHLIGHT_AFTER,
+  HIGHLIGHT_BEFORE,
+  ReplaySession,
+  type Highlight,
+} from "./replay-session";
 import { browserStore, loadName, saveLocale, saveName } from "./store";
 import { buildTouchControls, hasTouch } from "./touch";
 
@@ -52,6 +61,8 @@ type TestHooks = {
   seat(): number;
   screen(): ScreenKind;
   hash(): number;
+  /** Runs a replay to the end in this browser and returns the final state's hash (or -1). */
+  replayHash(text: string): number;
 };
 
 function intParam(params: URLSearchParams, key: string): number | null {
@@ -88,6 +99,9 @@ export class App {
   private offlineNote = false;
   private closedNote = false;
   private pickingMap = false;
+  private replayBroken = false;
+  private mainSession: Session | null = null;
+  private highlight: Highlight | null = null;
   private connection: "connecting" | "open" | "lost" | "closed" = "open";
 
   constructor(root: HTMLElement, options: AppOptions) {
@@ -109,7 +123,9 @@ export class App {
 
   start(): void {
     const p = this.options.params;
-    if (p.get("offline") === "1") this.practice(loadName(this.store));
+    const replayParam = p.get("replay");
+    if (replayParam !== null) this.watchReplay(replayParam);
+    else if (p.get("offline") === "1") this.practice(loadName(this.store));
     else this.showLanding();
     this.resize();
     requestAnimationFrame((now) => {
@@ -174,6 +190,7 @@ export class App {
               name: loadName(this.store),
               offline: this.offlineNote,
               closed: this.closedNote,
+              broken: this.replayBroken,
               code: parseRoomCode(this.options.params.get("room")),
             },
           ),
@@ -240,6 +257,12 @@ export class App {
               onRematch: () => client!.send({ t: "rematch" }),
               onChangeMap: () => client!.send({ t: "lobby" }),
               onShare: () => this.copy(text, t("result.copied")),
+              ...(client!.replay() && !(this.session instanceof ReplaySession)
+                ? {
+                    onHighlight: () => this.playHighlight(),
+                    onCopyReplay: () => this.copyReplay(),
+                  }
+                : {}),
             },
             { shareText: text, copied: this.copied, offline: this.session!.offline },
           ),
@@ -247,6 +270,52 @@ export class App {
         break;
       }
     }
+  }
+
+  // ----- replays -----------------------------------------------------------------------------
+
+  private watchReplay(text: string): void {
+    const replay = decodeReplay(text);
+    if (!replay) {
+      this.replayBroken = true;
+      this.showLanding();
+      return;
+    }
+    this.open(new ReplaySession(replay), "");
+  }
+
+  private copyReplay(): void {
+    const replay = this.session?.client.replay();
+    if (replay) this.copy(`${SITE_URL}/?replay=${encodeReplay(replay)}`, t("result.replayCopied"));
+  }
+
+  /** Board 4: a few seconds around the biggest push, camera down close, then back. */
+  private playHighlight(): void {
+    const main = this.session;
+    const replay = main?.client.replay();
+    if (!main || !replay) return;
+    const h = findHighlight(replay);
+    if (!h) return;
+    const n = replay.inputs.length / SEATS;
+    this.mainSession = main;
+    this.highlight = h;
+    this.session = new ReplaySession(
+      replay,
+      Math.max(0, h.tick - HIGHLIGHT_BEFORE),
+      Math.min(n, h.tick + HIGHLIGHT_AFTER),
+      () => this.endHighlight(),
+    );
+    this.renderScreen(true);
+    this.rebuildHud();
+  }
+
+  private endHighlight(): void {
+    if (!this.mainSession) return;
+    this.session = this.mainSession;
+    this.mainSession = null;
+    this.highlight = null;
+    this.renderScreen(true);
+    this.rebuildHud();
   }
 
   // ----- sessions ----------------------------------------------------------------------------
@@ -387,6 +456,10 @@ export class App {
     this.hudLayer.replaceChildren();
     const client = this.session?.client;
     if (!client || (this.screen !== "match" && this.screen !== "result")) return;
+    if (this.highlight) {
+      this.hudLayer.append(renderHighlight(this.highlight, () => this.endHighlight()));
+      return;
+    }
     this.hud = new Hud(this.hudInfo(), () => this.toggleMenu());
     this.hudLayer.append(this.hud.root);
     if (this.touch && client.seat >= 0) this.hudLayer.append(buildTouchControls(this.input));
@@ -441,7 +514,8 @@ export class App {
     const client = session?.client;
     if (session && client) {
       if (!this.paused) {
-        this.acc += dt * 1000 * this.speed;
+        // The highlight always plays in real time.
+        this.acc += dt * 1000 * (this.highlight ? 1 : this.speed);
         let steps = 0;
         // Offline the room catches up after a stall; online the server keeps its own clock and a
         // burst of stale inputs helps nobody.
@@ -480,6 +554,7 @@ export class App {
           seat: client.seat,
           alpha: Math.min(1, this.acc / TICK_MS),
           reducedMotion: this.reducedMotion,
+          closeUp: this.highlight ? { x: this.highlight.x, y: this.highlight.y } : null,
         };
         this.renderer.draw(view, dt, s.tick + view.alpha);
         this.hud?.update(s, client.predicted, this.hudInfo(), this.renderer);
@@ -504,6 +579,10 @@ export class App {
       },
       seat: () => this.session?.client.seat ?? -1,
       screen: () => this.screen,
+      replayHash: (text) => {
+        const r = decodeReplay(text);
+        return r ? hashState(replayState(r)) : -1;
+      },
       hash: () => {
         const st = this.session?.client.confirmed;
         return st ? hashState(st) : 0;

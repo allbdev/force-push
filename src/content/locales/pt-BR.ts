@@ -145,6 +145,9 @@ const ptBR: LocaleDict = {
     rematchWaiting: "{n} de {total} querem revanche.",
     rematchHost: "Aguardando quem criou a sala.",
     territory: "Território final: {list}",
+    watchHighlight: "Ver o maior push",
+    copyReplay: "Copiar link do replay",
+    replayCopied: "Link do replay copiado",
   },
   share: {
     room: "Force Push · sala {code}",
@@ -175,6 +178,19 @@ const ptBR: LocaleDict = {
   freeze: {
     title: "Code freeze",
     note: "Últimos 30 segundos: a borda do mapa fecha, tile por tile. O que está pintado ali não conta mais.",
+  },
+  highlight: {
+    title: "force-push",
+    command: "$ git push --force origin {branch}",
+    gain: "+ {n} tiles    {branch}",
+    loss: "− {n} tiles    {branch}",
+    boxes: "− {n} caixas    legado/NÃO_MEXER",
+    note: "A câmera só aproxima no replay do fim da partida. Durante o jogo a vista é sempre de cima.",
+    back: "Voltar pro resultado",
+  },
+  replay: {
+    label: "replay",
+    broken: "Esse link de replay não funciona. Pode ser de uma versão antiga do jogo.",
   },
   connection: {
     connecting: "Conectando…",

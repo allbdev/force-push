@@ -9,6 +9,7 @@
  */
 import { mapById } from "../content/maps";
 import type { ClientMessage, LobbyView, MatchStart, ServerMessage } from "../core/protocol";
+import type { Replay } from "../core/replay";
 import {
   cloneState,
   createMatch,
@@ -44,6 +45,8 @@ export class MatchClient {
   private hashes = new Map<number, number>();
   /** Times the hash check failed (each triggers a resync). */
   mismatches = 0;
+  /** Every confirmed tick's inputs since the start (for replays); null after joining mid-match. */
+  private log: number[] | null = null;
   /** Events from confirmed ticks, oldest first, for the HUD (drained by the UI). */
   readonly events: GameState["events"][number][] = [];
 
@@ -109,6 +112,7 @@ export class MatchClient {
     this.match = match;
     this.confirmed =
       state ?? createMatch({ map, seed: match.seed, ticks: match.ticks, freeze: match.freeze });
+    this.log = state && state.tick > 0 ? null : [];
     this.previous = cloneState(this.confirmed);
     this.pending = [];
     this.hashes.clear();
@@ -126,6 +130,7 @@ export class MatchClient {
     }
     this.previous = cloneState(s);
     stepInPlace(s, inputs);
+    if (this.log) for (let k = 0; k < SEATS; k++) this.log.push((inputs[k] ?? 0) & INPUT_MASK);
     for (const e of s.events) this.events.push(e);
     if (this.events.length > 200) this.events.splice(0, this.events.length - 200);
     this.lastInputs = inputs.slice(0, SEATS);
@@ -164,6 +169,13 @@ export class MatchClient {
       stepInPlace(p, inputs);
     }
     this.predicted = p;
+  }
+
+  /** The match so far as a replay, or null if this client didn't see it from the start. */
+  replay(): Replay | null {
+    if (!this.log || !this.match) return null;
+    const { seed, mapId, ticks, freeze, version } = this.match;
+    return { version, seed, mapId, ticks, freeze, inputs: Uint8Array.from(this.log) };
   }
 
   /** Inputs not yet acknowledged by the server (for tests and the ping display). */
