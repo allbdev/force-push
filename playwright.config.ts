@@ -10,15 +10,29 @@ export default defineConfig({
     trace: "retain-on-failure",
   },
   projects: [
-    { name: "chromium", use: { ...devices["Desktop Chrome"] } },
-    { name: "firefox", use: { ...devices["Desktop Firefox"] } },
-    { name: "webkit", use: { ...devices["Desktop Safari"] } },
-    { name: "phone", use: { ...devices["Pixel 7"] } },
+    { name: "chromium", use: { ...devices["Desktop Chrome"] }, testIgnore: /online/ },
+    { name: "firefox", use: { ...devices["Desktop Firefox"] }, testIgnore: /online/ },
+    { name: "webkit", use: { ...devices["Desktop Safari"] }, testIgnore: /online/ },
+    { name: "phone", use: { ...devices["Pixel 7"] }, testIgnore: /online/ },
+    // Two browsers through the real Worker and Durable Object (wrangler dev).
+    {
+      name: "online",
+      use: { ...devices["Desktop Chrome"], baseURL: "http://localhost:8787" },
+      testMatch: /online/,
+    },
   ],
-  webServer: {
-    command: "npm run build && npm run preview",
-    url: "http://localhost:4174",
-    reuseExistingServer: !process.env.CI,
-    timeout: 120_000,
-  },
+  webServer: [
+    {
+      command: "npm run build && npm run preview",
+      url: "http://localhost:4174",
+      reuseExistingServer: !process.env.CI,
+      timeout: 120_000,
+    },
+    {
+      command: "npx wrangler dev --port 8787 --var ALLOW_DEV_ORIGINS:1",
+      url: "http://localhost:8787",
+      reuseExistingServer: !process.env.CI,
+      timeout: 120_000,
+    },
+  ],
 });

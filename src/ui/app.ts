@@ -13,7 +13,7 @@ import { parseRoomCode } from "../core/room-code";
 import { scoreMatch } from "../core/score";
 import { shareData } from "../core/share";
 import { cleanName } from "../core/names";
-import type { GameState } from "../core/state";
+import { hashState, type GameState } from "../core/state";
 import { el } from "./dom";
 import { shareText } from "./format";
 import { Hud } from "./hud";
@@ -29,8 +29,11 @@ const TICK_MS = 1000 / TICKS_PER_SECOND;
 
 export type AppOptions = {
   readonly params: URLSearchParams;
-  /** Opens an online session, or null when there's no room server (offline build). */
-  readonly connect: ((code: string | null, name: string) => Session | null) | null;
+  /** Online rooms: create one (null when there's no room server) or join one by code. */
+  readonly online: {
+    create(name: string): Promise<Session | null>;
+    join(code: string, name: string): Session;
+  } | null;
 };
 
 type ScreenKind = "landing" | "lobby" | "match" | "result";
@@ -41,6 +44,7 @@ type TestHooks = {
   paused: boolean;
   seat(): number;
   screen(): ScreenKind;
+  hash(): number;
 };
 
 function intParam(params: URLSearchParams, key: string): number | null {
@@ -75,6 +79,8 @@ export class App {
   private paused = false;
   private matchSeed = -1;
   private offlineNote = false;
+  private closedNote = false;
+  private connection: "connecting" | "open" | "lost" | "closed" = "open";
 
   constructor(root: HTMLElement, options: AppOptions) {
     this.root = root;
@@ -159,6 +165,7 @@ export class App {
             {
               name: loadName(this.store),
               offline: this.offlineNote,
+              closed: this.closedNote,
               code: parseRoomCode(this.options.params.get("room")),
             },
           ),
@@ -219,7 +226,17 @@ export class App {
     this.session?.close();
     this.session = session;
     saveName(this.store, cleanName(name));
-    session.onStatus = () => this.renderScreen(true);
+    session.onStatus = (status) => {
+      this.connection = status;
+      if (status === "closed" && this.session === session) {
+        this.session = null;
+        this.closedNote = true;
+        this.setRoomInUrl(null);
+        this.showLanding();
+        return;
+      }
+      this.renderScreen(true);
+    };
     this.renderScreen(true);
   }
 
@@ -246,25 +263,41 @@ export class App {
   }
 
   private create(name: string): void {
-    const session = this.options.connect?.(null, cleanName(name)) ?? null;
-    if (!session) {
-      // No room server: the same lobby, offline, bots in the other seats.
-      this.offlineNote = true;
-      const local = new LocalSession(cleanName(name), cryptoRandom);
-      this.open(local, name);
-      return;
-    }
-    this.open(session, name);
+    const online = this.options.online;
+    if (!online) return this.createOffline(name);
+    this.screenLayer.replaceChildren(
+      el("p", { class: "connecting", role: "status" }, t("connection.connecting")),
+    );
+    void online.create(cleanName(name)).then((session) => {
+      if (!session) return this.createOffline(name);
+      this.open(session, name);
+      this.setRoomInUrl(session.code);
+    });
+  }
+
+  /** No room server: the same lobby, offline, bots in the other seats. */
+  private createOffline(name: string): void {
+    this.offlineNote = true;
+    this.open(new LocalSession(cleanName(name), cryptoRandom), name);
   }
 
   private join(code: string, name: string): void {
-    const session = this.options.connect?.(code, cleanName(name)) ?? null;
-    if (!session) {
+    const online = this.options.online;
+    if (!online) {
       this.offlineNote = true;
       this.showLanding();
       return;
     }
+    const session = online.join(code, cleanName(name));
     this.open(session, name);
+    this.setRoomInUrl(code);
+  }
+
+  private setRoomInUrl(code: string | null): void {
+    const url = new URL(location.href);
+    if (code) url.searchParams.set("room", code);
+    else url.searchParams.delete("room");
+    history.replaceState(null, "", url);
   }
 
   private leave(): void {
@@ -273,9 +306,7 @@ export class App {
     this.session = null;
     this.closeMenu();
     this.leaveMatchView();
-    const url = new URL(location.href);
-    url.searchParams.delete("room");
-    history.replaceState(null, "", url);
+    this.setRoomInUrl(null);
     this.showLanding();
   }
 
@@ -383,13 +414,16 @@ export class App {
       if (!this.paused) {
         this.acc += dt * 1000 * this.speed;
         let steps = 0;
-        while (this.acc >= TICK_MS && steps < 40) {
+        // Offline the room catches up after a stall; online the server keeps its own clock and a
+        // burst of stale inputs helps nobody.
+        const maxSteps = session.offline ? 40 : 3;
+        while (this.acc >= TICK_MS && steps < maxSteps) {
           this.acc -= TICK_MS;
           steps++;
           const bits = this.scripted.length ? this.scripted.shift()! : this.input.sample();
           session.tick(bits);
         }
-        if (steps >= 40) this.acc = 0;
+        if (steps >= maxSteps) this.acc = Math.min(this.acc, TICK_MS);
       }
       const s = client.confirmed;
       if (s && s.seed !== this.matchSeed) {
@@ -441,6 +475,10 @@ export class App {
       },
       seat: () => this.session?.client.seat ?? -1,
       screen: () => this.screen,
+      hash: () => {
+        const st = this.session?.client.confirmed;
+        return st ? hashState(st) : 0;
+      },
     };
     // eslint-disable-next-line @typescript-eslint/no-this-alias
     const app = this;

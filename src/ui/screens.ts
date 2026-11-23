@@ -48,7 +48,7 @@ function tags(): HTMLElement {
 
 export function renderLanding(
   h: LandingHandlers,
-  opts: { name: string; offline: boolean; code: string | null },
+  opts: { name: string; offline: boolean; code: string | null; closed?: boolean },
 ): HTMLElement {
   const nameInput = el("input", {
     id: "player-name",
@@ -146,6 +146,7 @@ export function renderLanding(
     actions,
     joinForm,
     opts.offline ? el("p", { class: "note", role: "status" }, t("landing.offline")) : el("span"),
+    opts.closed ? el("p", { class: "note", role: "status" }, t("connection.closed")) : el("span"),
     el("div", { class: "facts" }, tags(), el("p", {}, t("landing.facts"))),
     el(
       "a",
@@ -168,11 +169,17 @@ export type LobbyHandlers = {
   readonly onCopyLink: () => void;
 };
 
+/** The host starts the sprint, so they always count as ready (board 2: "you · ready"). */
+function isReady(lobby: LobbyView, seat: number): boolean {
+  const s = lobby.seats[seat]!;
+  return s.kind === "human" && !s.away && (s.ready || seat === lobby.host);
+}
+
 function seatState(lobby: LobbyView, seat: number): string {
   const s = lobby.seats[seat]!;
   if (s.kind === "empty" || s.kind === "bot") return t("lobby.botWaiting");
   if (s.away) return t("lobby.away");
-  return s.ready ? t("lobby.ready") : t("lobby.notReady");
+  return isReady(lobby, seat) ? t("lobby.ready") : t("lobby.notReady");
 }
 
 function seatName(lobby: LobbyView, seat: number, me: number): string {
@@ -187,8 +194,8 @@ export function lobbyStatus(lobby: LobbyView, me: number): string {
   const humans = lobby.seats
     .map((s, i) => ({ s, i }))
     .filter(({ s }) => s.kind === "human" && !s.away);
-  const ready = humans.filter(({ s }) => s.ready).length;
-  const waiting = humans.find(({ s }) => !s.ready);
+  const ready = humans.filter(({ i }) => isReady(lobby, i)).length;
+  const waiting = humans.find(({ i }) => !isReady(lobby, i));
   if (waiting)
     return t("lobby.statusWaiting", {
       ready,
@@ -212,7 +219,7 @@ export function renderLobby(
     ...BRANCHES.map((b, seat) => {
       const state = seatState(lobby, seat);
       const name = seatName(lobby, seat, me);
-      const ready = lobby.seats[seat]!.kind === "human" && lobby.seats[seat]!.ready;
+      const ready = isReady(lobby, seat);
       return el(
         "li",
         {

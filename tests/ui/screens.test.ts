@@ -26,7 +26,7 @@ function lobby(over: Partial<LobbyView> = {}): LobbyView {
     code: "FRI-1758",
     phase: "lobby",
     seats: [
-      { kind: "human", name: "Vini", ready: true, away: false },
+      { kind: "human", name: "Vini", ready: false, away: false },
       { kind: "human", name: "Bia", ready: true, away: false },
       { kind: "human", name: "Rafa", ready: false, away: false },
       { kind: "empty", name: "", ready: false, away: false },
