@@ -19,6 +19,9 @@ export default defineConfig({
       name: "online",
       use: { ...devices["Desktop Chrome"], baseURL: "http://localhost:8787" },
       testMatch: /online/,
+      // A whole real-time sprint through a real server: one retry for a stalled run (seen once
+      // in three local runs; see TODO_FOR_YOU.md).
+      retries: 1,
     },
   ],
   webServer: [
