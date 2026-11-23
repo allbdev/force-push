@@ -3,7 +3,7 @@ import fc from "fast-check";
 import { BOX, FLOOR, layoutFor, parseMap, RACK } from "../../src/core/map";
 import { seedRng } from "../../src/core/rng";
 import { MAPS, mapById } from "../../src/content/maps";
-import openSpace from "../../src/content/maps/open-space.json";
+import openSpace from "../../src/content/maps/open-space.json" with { type: "json" };
 
 const base = () => JSON.parse(JSON.stringify(openSpace)) as Record<string, unknown>;
 

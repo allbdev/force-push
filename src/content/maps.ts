@@ -1,8 +1,8 @@
 import { parseMap, type MapDef } from "../core/map";
 import { dailyMap } from "../core/daily";
-import dataCenter from "./maps/data-center.json";
-import openSpace from "./maps/open-space.json";
-import rooftop from "./maps/rooftop.json";
+import dataCenter from "./maps/data-center.json" with { type: "json" };
+import openSpace from "./maps/open-space.json" with { type: "json" };
+import rooftop from "./maps/rooftop.json" with { type: "json" };
 
 /** Maps, validated at load: a broken map file fails the build's tests, not a match. */
 function load(json: unknown): MapDef {
