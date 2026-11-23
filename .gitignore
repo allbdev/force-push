@@ -24,3 +24,7 @@ blob-report/
 
 # Design board captures (tools/designs/)
 design-captures/
+
+# Wrangler
+.wrangler/
+.dev.vars
