@@ -1,5 +1,8 @@
 import { parseMap, type MapDef } from "../core/map";
+import { dailyMap } from "../core/daily";
+import dataCenter from "./maps/data-center.json";
 import openSpace from "./maps/open-space.json";
+import rooftop from "./maps/rooftop.json";
 
 /** Maps, validated at load: a broken map file fails the build's tests, not a match. */
 function load(json: unknown): MapDef {
@@ -8,9 +11,10 @@ function load(json: unknown): MapDef {
   return result.map;
 }
 
-export const MAPS: readonly MapDef[] = [load(openSpace)];
+export const MAPS: readonly MapDef[] = [load(openSpace), load(dataCenter), load(rooftop)];
 export const DEFAULT_MAP_ID = "open-space";
 
+/** A shipped map, or the map of the day for a `daily-YYYYMMDD` id. */
 export function mapById(id: string): MapDef | undefined {
-  return MAPS.find((m) => m.id === id);
+  return MAPS.find((m) => m.id === id) ?? dailyMap(id);
 }

@@ -111,8 +111,9 @@ describe("layoutFor", () => {
   });
 
   it("only hides the power-ups the map lists", () => {
-    const { hidden } = layoutFor(map, seedRng(1));
-    // coffee = 1, duck = 2, stackOverflow = 3 (first version only).
+    const only = { ...map, dropWeights: { coffee: 1, duck: 1, stackOverflow: 1 } };
+    const { hidden } = layoutFor(only, seedRng(1));
+    // coffee = 1, duck = 2, stackOverflow = 3.
     for (const v of hidden) expect(v).toBeLessThanOrEqual(3);
   });
 });
