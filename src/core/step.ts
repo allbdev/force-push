@@ -4,6 +4,7 @@
  */
 import { releasePasses, tickPushes, tryDrop } from "./blast";
 import { movePlayer, updatePref } from "./movement";
+import { applyHits, applyPickups, tickTimers } from "./revert";
 import { cloneState, IN_PUSH, INPUT_MASK, inPlay, SEATS, type GameState } from "./state";
 
 export function step(state: GameState, inputs: readonly number[]): GameState {
@@ -15,6 +16,8 @@ export function step(state: GameState, inputs: readonly number[]): GameState {
 export function stepInPlace(s: GameState, inputs: readonly number[]): void {
   s.events = [];
   if (s.ended) return;
+
+  tickTimers(s);
 
   for (let seat = 0; seat < SEATS; seat++) {
     const p = s.players[seat]!;
@@ -28,6 +31,8 @@ export function stepInPlace(s: GameState, inputs: readonly number[]): void {
   }
   releasePasses(s);
   tickPushes(s);
+  applyHits(s);
+  applyPickups(s);
 
   s.tick += 1;
   if (s.tick >= s.endTick) {
