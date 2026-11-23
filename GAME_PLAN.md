@@ -23,7 +23,7 @@ A turf war in an open-plan office. Four branches, one floor, three minutes. Blas
 | D4 | Simulation | A pure, deterministic `step(state, inputs) → state` at **20 ticks per second**, **integers only** | The server and the client run the same code; replays are an input log; no floats means no cross-browser drift |
 | D5 | Networking | One authoritative room per match over WebSocket. Clients send inputs, predict their own movement and reconcile with the server's ticks (§11) | Server authority stops cheating; prediction hides 100–150 ms |
 | D6 | Room host | A plain WebSocket room running our own `step`, not Colyseus (Colyseus brings its own state sync, which we don't need). **Cloudflare** (decided 22 Nov 2026): one Worker serves the built client as static assets and runs one **Durable Object per room**, on `force-push.vinicius-albuquerque.com.br` | One object per room is exactly the model; client and socket share an origin; no server to keep alive. The room stays a class with a transport, so the host is still swappable |
-| D7 | Bots | From the first version, written against the same `step`; empty seats become bots | Empty lobbies are the biggest risk; a match can start with one human |
+| D7 | Bots | From the first version, written against the same `step`; empty seats become bots, unless the host **closes** them (23 Nov 2026: a 1v1 or a three-way match, online or offline) | Empty lobbies are the biggest risk; a match can start with one human. Two friends still want a straight 1v1 |
 | D8 | Text | **English by default, PT-BR toggle** | Same as the sibling games |
 | D9 | Session | Sprints of 3 minutes (2 and 5 in the lobby); a room plays several in a row | It is opened from a link |
 | D10 | Money | None. No ads, no accounts. The server keeps a room only while it is open; nothing is stored about players | Keeps it outside any compliance work |
@@ -38,7 +38,7 @@ Open decisions are in `TODO_FOR_YOU.md`.
 
 ## 3. The loop
 
-1. Open a link or type a room code. 2 to 4 players, each a branch: `main`, `feature`, `hotfix`, `dev`. Empty seats are bots.
+1. Open a link or type a room code. 2 to 4 players, each a branch: `main`, `feature`, `hotfix`, `dev`. Empty seats are bots, or closed for a smaller match.
 2. Walk the grid and drop a force-push. Three seconds later it blasts in a cross and paints every tile it reaches in your colour.
 3. Blasts break legacy boxes (which may hide a power-up) and stop at server racks.
 4. Caught in a blast: you are **reverted**. You lose 4 seconds and 3 tiles near where you fell, and respawn at your desk. Nobody is eliminated.
@@ -141,13 +141,14 @@ On in every room. In the last 30 s the outer ring closes tile by tile, clockwise
 
 - They run on the same `step`, from the room's seed, so a bot plays the same on the server and in a replay.
 - Each tick a bot reads a **danger map** (tiles a pending blast will reach, and when), then picks a goal by score: boxes in reach, tiles that aren't its colour, power-ups, escape. It drops a push only if it can reach a safe tile before the fuse ends.
-- One difficulty in the first version. A bot plays as `bot` in the lobby ("joins if nobody comes").
+- One difficulty in the first version. A bot plays as `bot` in the lobby ("joins if nobody comes"). A closed seat has no bot (§7).
 
 ## 7. Rooms
 
 - **Code:** three letters and four digits, `FRI-1758`, generated without I or O in the letters so nobody reads them as 1 and 0 (typed codes accept any letters, so the board's `FRI-1758` is valid). The link is the game URL with `?room=FRI-1758`.
-- **Lobby** (board 2): the four seats with the branch, name and state ("ready", "choosing headphones…", "joins if nobody comes"), the map with **Change map** (opens board 8), the sprint length (2 / 3 / 5 min, remembered), **Start sprint** (the host: the room's creator, or the next person if they leave; the host always counts as ready), **I'm ready** for everyone else, **Leave**. A mock terminal reads the room's status (`3 of 4 ready. Waiting for Rafa.`).
+- **Lobby** (board 2): the four seats with the branch, name and state ("ready", "choosing headphones…", "joins if nobody comes"), the map with **Change map** (opens board 8), the sprint length (2 / 3 / 5 min, remembered), **Start sprint** (the host: the room's creator, or the next person if they leave; the host always counts as ready), **I'm ready** for everyone else, **Leave**. A mock terminal reads the room's status (`3 of 4 ready. Waiting for Rafa.`). The note beside **Leave**: "Empty seats become bots. Close one for a smaller fight."
 - **Seats:** the first four to join get `main`, `feature`, `hotfix`, `dev` in that order. A room can start with one human; empty seats become bots.
+- **Closed seats** (23 Nov 2026, boards 2 and 2b): in the lobby the host has a **bot / closed** switch on every empty seat. A closed seat reads "closed · nobody plays here", dashed and greyed, to everyone. Nobody plays it, not even a bot: it has no developer, no desk, no chip in the territory bar, no share and no row on the result, and shares are split between the open seats. Two closed seats make a 1v1 (two people, or you against one bot offline); one makes a three-way. At least two seats stay open, so closing is off on the last one. Nobody is seated in a closed seat: a newcomer takes an open one, or watches. Closed seats stay through the result and rematches until the host reopens them; they can't change mid-sprint. **Play against bots** opens the offline lobby first, with the same switch. The maps stay the same size.
 - **Names:** optional, up to 12 characters, letters, digits, space, `_` and `-` (any script), checked on the server. Shown to the other players only; nothing is kept after the room closes.
 - **Drop out mid-sprint:** a bot takes your seat until you come back with the same link (the browser keeps a per-room token; the server hands the seat back and sends a snapshot).
 - **Full room:** a fifth person (up to 12 connections) watches as a spectator.
@@ -187,7 +188,7 @@ The validator is hand-written (no schema library without asking) and rejects a d
 - **Share line** (draft):
   `Force Push · room FRI-1758` / `main won: +212 −181 (31%)` / `42 force-pushes · 2 reverts` / `force-push.vinicius-albuquerque.com.br`. PT-BR: `Force Push · sala FRI-1758` / `main venceu: +212 −181 (31%)`. Line 2 is the winner; line 3 is the sharer's own match.
 - **Highlight replay** (second version, board 4): **Watch the biggest push** on the result plays the five seconds around it again with the camera down close ("force-push", `$ git push --force origin dev`, the tiles gained, the tiles lost per branch, boxes broken), then returns to the result. During play the camera never moves in.
-- **Replays** (second version): the match is its seed, map, version and input log, so a replay is a link (`?replay=…`, **Copy replay link** on the result) that runs `step` again: four seats to 20 bits per tick, run-length encoded, base64url; a 3-minute match fits in a link. Untrusted input: length cap, strict parse, polite failure.
+- **Replays** (second version): the match is its seed, map, version and input log, so a replay is a link (`?replay=…`, **Copy replay link** on the result) that runs `step` again: four seats to 20 bits per tick, run-length encoded, base64url; a 3-minute match fits in a link. The flags byte carries the freeze and the closed seats (links from before closed seats read as a full table). Untrusted input: length cap, strict parse, polite failure.
 
 ## 10. Look
 

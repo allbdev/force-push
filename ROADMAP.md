@@ -105,6 +105,7 @@
 46. [x] End-of-match highlight replay with the close camera (board 4)
 47. [x] Spectators (join a full room to watch)
 48. [x] Daily map: generated from the date, bots must finish it, re-roll otherwise
+48b. [x] Closed seats (asked for 23 Nov 2026): the host switches empty seats between bot and closed for a 1v1 or three-way match, online and offline; boards 2 and 2b
 
 ---
 
