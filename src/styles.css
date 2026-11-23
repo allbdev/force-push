@@ -343,6 +343,10 @@ body[data-screen="result"] .hud-layer {
   gap: 6px;
   max-width: 280px;
 }
+/* `display: flex` would otherwise beat the `hidden` attribute. */
+.join-form[hidden] {
+  display: none;
+}
 .join-form {
   display: flex;
   flex-direction: column;

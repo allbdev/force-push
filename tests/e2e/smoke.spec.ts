@@ -7,6 +7,8 @@ test("the landing loads with the title, the buttons and no errors", async ({ pag
   await expect(page.locator("h1")).toContainText("Force");
   await expect(page.getByTestId("create")).toBeVisible();
   await expect(page.getByTestId("practice")).toBeVisible();
+  // The room-code form stays folded away until "join with a code" is pressed.
+  await expect(page.getByTestId("code")).toBeHidden();
   expect(errors).toEqual([]);
 });
 
