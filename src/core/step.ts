@@ -3,6 +3,7 @@
  * bits per seat (src/core/state.ts). `stepInPlace` is the same without the copy, for hot loops.
  */
 import { releasePasses, tickPushes, tryDrop } from "./blast";
+import { tickFreeze } from "./freeze";
 import { movePlayer, updatePref } from "./movement";
 import { applyHits, applyPickups, tickTimers } from "./revert";
 import { cloneState, IN_PUSH, INPUT_MASK, inPlay, SEATS, type GameState } from "./state";
@@ -30,9 +31,11 @@ export function stepInPlace(s: GameState, inputs: readonly number[]): void {
     p.prevInput = input;
   }
   releasePasses(s);
+
   tickPushes(s);
   applyHits(s);
   applyPickups(s);
+  tickFreeze(s);
 
   s.tick += 1;
   if (s.tick >= s.endTick) {
