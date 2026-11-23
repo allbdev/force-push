@@ -109,6 +109,7 @@ describe("lobby (board 2)", () => {
       onStart: vi.fn(),
       onLeave: vi.fn(),
       onCopyLink: vi.fn(),
+      onPickMap: vi.fn(),
     };
     const root = renderLobby(lobby(), 0, h, { offline: false, copied: "" });
     buttonsHaveNames(root);
@@ -128,6 +129,7 @@ describe("lobby (board 2)", () => {
       onStart: vi.fn(),
       onLeave: vi.fn(),
       onCopyLink: vi.fn(),
+      onPickMap: vi.fn(),
     };
     const root = renderLobby(lobby(), 2, h, { offline: false, copied: "" });
     expect(root.querySelector("[data-testid=start]")).toBeNull();
@@ -172,5 +174,26 @@ describe("result (board 7)", () => {
   it("uses the room's digits for the PR number", () => {
     expect(prNumberFor("FRI-1758", 99)).toBe(1758);
     expect(prNumberFor(null, 123456)).toBe(3456);
+  });
+});
+
+describe("map select (board 8)", () => {
+  it("shows the three maps and the map of the day, and picks one", async () => {
+    const { renderMapSelect } = await import("../../src/ui/screens");
+    setLocale("en");
+    const onPick = vi.fn();
+    const onBack = vi.fn();
+    const root = renderMapSelect("open-space", onPick, onBack);
+    const cards = root.querySelectorAll(".map-card");
+    expect(cards).toHaveLength(3);
+    expect(cards[0]!.getAttribute("aria-pressed")).toBe("true");
+    expect(cards[0]!.textContent).toContain("selected");
+    expect(cards[2]!.textContent).toContain("Rooftop Happy Hour");
+    (root.querySelector("[data-testid=map-data-center]") as HTMLButtonElement).click();
+    expect(onPick).toHaveBeenCalledWith("data-center");
+    (root.querySelector("[data-testid=map-daily]") as HTMLButtonElement).click();
+    expect(onPick.mock.calls[1]![0]).toMatch(/^daily-\d{8}$/);
+    (root.querySelector("[data-testid=map-back]") as HTMLButtonElement).click();
+    expect(onBack).toHaveBeenCalled();
   });
 });

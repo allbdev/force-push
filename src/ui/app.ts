@@ -20,7 +20,14 @@ import { Hud } from "./hud";
 import { getLocale, setLocale, t } from "./i18n";
 import { bindKeyboard, InputState } from "./input";
 import type { ArenaRenderer } from "./render3d";
-import { prNumberFor, renderLanding, renderLobby, renderMenu, renderResult } from "./screens";
+import {
+  prNumberFor,
+  renderLanding,
+  renderLobby,
+  renderMapSelect,
+  renderMenu,
+  renderResult,
+} from "./screens";
 import { cryptoRandom, LocalSession, type Session } from "./session";
 import { browserStore, loadName, saveLocale, saveName } from "./store";
 import { buildTouchControls, hasTouch } from "./touch";
@@ -80,6 +87,7 @@ export class App {
   private matchSeed = -1;
   private offlineNote = false;
   private closedNote = false;
+  private pickingMap = false;
   private connection: "connecting" | "open" | "lost" | "closed" = "open";
 
   constructor(root: HTMLElement, options: AppOptions) {
@@ -178,6 +186,23 @@ export class App {
           );
           break;
         }
+        if (this.pickingMap && client.seat === lobby.host) {
+          this.screenLayer.replaceChildren(
+            renderMapSelect(
+              lobby.mapId,
+              (mapId) => {
+                client.send({ t: "settings", mapId, minutes: lobby.minutes });
+                this.pickingMap = false;
+                this.renderScreen(true);
+              },
+              () => {
+                this.pickingMap = false;
+                this.renderScreen(true);
+              },
+            ),
+          );
+          break;
+        }
         this.screenLayer.replaceChildren(
           renderLobby(
             lobby,
@@ -188,6 +213,10 @@ export class App {
               onStart: () => client.send({ t: "start" }),
               onLeave: () => this.leave(),
               onCopyLink: () => this.copyLink(),
+              onPickMap: () => {
+                this.pickingMap = true;
+                this.renderScreen(true);
+              },
             },
             { offline: this.session!.offline, copied: this.copied },
           ),

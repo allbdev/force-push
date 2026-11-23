@@ -10,7 +10,8 @@ import type { LobbyView } from "../core/protocol";
 import { parseRoomCode } from "../core/room-code";
 import type { MatchResult } from "../core/score";
 import { el, withSlot } from "./dom";
-import { branchName } from "./format";
+import { branchName, mapName, todaysDailyId } from "./format";
+import { drawMapThumb } from "./map-thumb";
 import { getLocale, t } from "./i18n";
 
 export type LandingHandlers = {
@@ -167,6 +168,7 @@ export type LobbyHandlers = {
   readonly onStart: () => void;
   readonly onLeave: () => void;
   readonly onCopyLink: () => void;
+  readonly onPickMap: () => void;
 };
 
 /** The host starts the sprint, so they always count as ready (board 2: "you · ready"). */
@@ -250,17 +252,13 @@ export function renderLobby(
       b.title = t("lobby.hostOnly");
     }
   });
-  const mapButtons = MAPS.map((m) =>
-    button(
-      t(`maps.${m.id}`),
-      m.id === lobby.mapId ? "map-pick is-on" : "map-pick",
-      () => h.onSettings(m.id, lobby.minutes),
-      {
-        "aria-pressed": String(m.id === lobby.mapId),
-      },
-    ),
-  );
-  if (!isHost) mapButtons.forEach((b) => (b.disabled = true));
+  const changeMap = button(t("mapSelect.change"), "btn btn-small", h.onPickMap, {
+    "data-testid": "change-map-lobby",
+  });
+  if (!isHost) {
+    changeMap.disabled = true;
+    changeMap.title = t("lobby.hostOnly");
+  }
 
   const branch = me >= 0 ? BRANCHES[me]! : "main";
   const terminal = el(
@@ -326,11 +324,11 @@ export function renderLobby(
           el(
             "div",
             { class: "map-row" },
-            el("div", { class: "map-thumb", "aria-hidden": "true" }),
+            thumb(map, 120, 68),
             el(
               "div",
               {},
-              el("div", { class: "map-name" }, t(`maps.${map.id}`)),
+              el("div", { class: "map-name", "data-testid": "map-name" }, mapName(map.id)),
               el(
                 "div",
                 { class: "map-detail" },
@@ -338,7 +336,7 @@ export function renderLobby(
               ),
             ),
           ),
-          MAPS.length > 1 ? el("div", { class: "row map-picks" }, ...mapButtons) : el("span"),
+          changeMap,
           el("span", { class: "hud-label" }, t("lobby.sprint")),
           el("div", { class: "row" }, ...minuteButtons),
         ),
@@ -346,6 +344,82 @@ export function renderLobby(
       ),
     ),
     controls,
+  );
+}
+
+/** A map thumbnail; a plain block where there's no canvas (tests). */
+function thumb(map: NonNullable<ReturnType<typeof mapById>>, w: number, h: number): HTMLElement {
+  try {
+    const c = drawMapThumb(map, w, h);
+    c.classList.add("map-thumb");
+    return c;
+  } catch {
+    return el("div", { class: "map-thumb", "aria-hidden": "true" });
+  }
+}
+
+const MAP_DESC: Readonly<Record<string, string>> = {
+  "open-space": "mapSelect.descOpenSpace",
+  "data-center": "mapSelect.descDataCenter",
+  rooftop: "mapSelect.descRooftop",
+};
+
+/** Map select (board 8): the three maps, and the map of the day. */
+export function renderMapSelect(
+  current: string,
+  onPick: (mapId: string) => void,
+  onBack: () => void,
+): HTMLElement {
+  const daily = todaysDailyId();
+  const card = (id: string) => {
+    const map = mapById(id);
+    if (!map) return el("span");
+    const selected = id === current;
+    const b = el(
+      "button",
+      {
+        type: "button",
+        class: selected ? "map-card is-on" : "map-card",
+        "aria-pressed": String(selected),
+        "data-testid": `map-${id.startsWith("daily-") ? "daily" : id}`,
+      },
+      thumb(map, 366, 206),
+      el(
+        "span",
+        { class: "map-card-text" },
+        el("span", { class: "map-card-name" }, mapName(id)),
+        el("span", { class: "map-card-desc" }, t(MAP_DESC[id] ?? "mapSelect.descDaily")),
+        el(
+          "span",
+          { class: "map-card-meta" },
+          selected ? t("mapSelect.selected") : t("mapSelect.size", { w: map.width, h: map.height }),
+        ),
+      ),
+    );
+    b.addEventListener("click", () => onPick(id));
+    return b;
+  };
+  const dailyButton = button(
+    t("mapSelect.daily"),
+    daily === current ? "daily-link is-on" : "daily-link",
+    () => onPick(daily),
+    {
+      "data-testid": "map-daily",
+      "aria-pressed": String(daily === current),
+    },
+  );
+  return el(
+    "main",
+    { class: "map-select" },
+    el("p", { class: "result-pr" }, t("mapSelect.kicker")),
+    el("h1", { class: "map-select-title" }, t("mapSelect.title")),
+    el("div", { class: "map-cards" }, ...MAPS.map((m) => card(m.id))),
+    el(
+      "div",
+      { class: "row" },
+      button(t("mapSelect.back"), "btn", onBack, { "data-testid": "map-back" }),
+      dailyButton,
+    ),
   );
 }
 

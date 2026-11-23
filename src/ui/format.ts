@@ -81,3 +81,18 @@ export function shareText(data: ShareData): string {
     SITE_HOST,
   ].join("\n");
 }
+
+/** A map's name: shipped maps from the locale, the daily one with its date. */
+export function mapName(id: string): string {
+  const daily = /^daily-(\d{4})(\d{2})(\d{2})$/.exec(id);
+  if (daily) return `${t("mapSelect.dailyName")} · ${daily[3]}/${daily[2]}`;
+  return t(`maps.${id}`);
+}
+
+/** Today's daily map id, from the player's local date. */
+export function todaysDailyId(now: Date = new Date()): string {
+  const y = now.getFullYear();
+  const m = String(now.getMonth() + 1).padStart(2, "0");
+  const d = String(now.getDate()).padStart(2, "0");
+  return `daily-${y}${m}${d}`;
+}

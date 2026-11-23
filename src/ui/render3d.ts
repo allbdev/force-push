@@ -56,6 +56,7 @@ import {
 import { blend, playerPoint, walkPhase, type Point } from "./positions";
 
 const TILE_H = 0.08;
+const RACK_SCALE = 0.7;
 /** Owner classes for the floor: 0 grey, 1–4 branches, 5 frozen. */
 const FLOOR_CLASSES = 6;
 
@@ -180,6 +181,8 @@ export class ArenaRenderer {
       if (s.kind[i] !== RACK) continue;
       const rack = buildRack(i % 3);
       rack.position.set(i % s.width, TILE_H, Math.floor(i / s.width));
+      // About a tile tall, like board 3: tall racks hide the floor, and the floor is the score.
+      rack.scale.y = RACK_SCALE;
       this.world.add(rack);
     }
     s.desks.forEach((d, seat) => {
