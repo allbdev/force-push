@@ -54,3 +54,25 @@ describe("code freeze", () => {
     expect(s.kind[tile(s, p.x, p.y)]).not.toBe(FROZEN);
   });
 });
+
+describe("code freeze, regression", () => {
+  it("stops a player who is halfway into a tile as it closes (never ends up inside it)", () => {
+    const s = createMatch({
+      map: openSpace(),
+      seed: 1,
+      ticks: RULES.freezeTicks + 10,
+      freeze: true,
+    });
+    // Seat 0 stands on (2,0) and starts walking left into (1,0) one tick before (1,0) closes.
+    const every = freezeEvery(44);
+    s.players[0]!.x = 2;
+    s.players[0]!.y = 0;
+    // (0,0) closes at tick 10 + every; (1,0) at 10 + 2 * every.
+    const closeAt = 10 + 2 * every;
+    run(s, closeAt - 1);
+    run(s, 2, [8, 0, 0, 0]); // left: one tick of step, then the tile closes
+    run(s, 10, [8, 0, 0, 0]);
+    const p = s.players[0]!;
+    expect(s.kind[tile(s, p.x, p.y)]).not.toBe(FROZEN);
+  });
+});

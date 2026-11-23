@@ -6,6 +6,7 @@
 import { RULES } from "../content/rules";
 import { paint } from "./blast";
 import { FROZEN, RACK } from "./map";
+import { bounceFrom } from "./movement";
 import { revert } from "./revert";
 import { effectiveTile, inPlay, type GameState } from "./state";
 
@@ -49,6 +50,9 @@ export function tickFreeze(s: GameState): void {
   if (push >= 0) s.pushes.splice(push, 1);
   s.events.push({ type: "freeze", x, y });
   s.players.forEach((p, seat) => {
-    if (inPlay(p) && effectiveTile(s, p) === i) revert(s, seat, seat, i);
+    if (!inPlay(p)) return;
+    // On it: reverted. Only heading into it: stopped where they are.
+    if (effectiveTile(s, p) === i) revert(s, seat, seat, i);
+    else bounceFrom(s, seat, i);
   });
 }
