@@ -49,6 +49,7 @@ export class Hud {
   private readonly revertedBy: HTMLElement;
   private readonly revertedCount: HTMLElement;
   private readonly pool: HTMLElement[] = [];
+  private readonly freezeBanner: HTMLElement;
   private seed = 0;
   private logIndex = 0;
 
@@ -142,7 +143,23 @@ export class Hud {
       el("p", { class: "panel rv-note" }, t("reverted.note")),
     );
 
-    this.root = el("div", { class: "hud" }, top, this.labels, bottom, this.reverted, this.status);
+    this.freezeBanner = el(
+      "div",
+      { class: "freeze-banner", hidden: "", role: "status" },
+      el("h2", { class: "freeze-title" }, t("freeze.title")),
+      el("p", { class: "panel freeze-note" }, t("freeze.note")),
+    );
+
+    this.root = el(
+      "div",
+      { class: "hud" },
+      top,
+      this.labels,
+      bottom,
+      this.freezeBanner,
+      this.reverted,
+      this.status,
+    );
   }
 
   /** New confirmed events: commit log lines and announcements. */
@@ -173,6 +190,10 @@ export class Hud {
     const frozen = s.freeze && s.tick >= freezeStart(s);
     setText(this.timerLabel, frozen ? t("hud.freezeIn") : t("hud.sprintEndsIn"));
     this.timerPanel.classList.toggle("freeze", frozen);
+    document.body.classList.toggle("is-freeze", frozen && !s.ended);
+    // Board 6: the banner for the first 4 seconds of the freeze.
+    const since = s.tick - freezeStart(s);
+    this.freezeBanner.hidden = !(s.freeze && since >= 0 && since < 80 && !s.ended);
     setText(this.timer, formatClock(left));
 
     // Territory.
@@ -276,6 +297,6 @@ export class Hud {
   }
 
   dispose(): void {
-    document.body.classList.remove("is-reverted");
+    document.body.classList.remove("is-reverted", "is-freeze");
   }
 }

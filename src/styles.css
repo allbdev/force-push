@@ -589,6 +589,46 @@ body[data-screen="result"] .hud-layer {
   }
 }
 
+/* ---------- code freeze (board 6) ---------- */
+
+body.is-freeze .hud-layer::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  box-shadow:
+    inset 0 0 0 10px var(--remove),
+    inset 0 0 120px rgba(255, 90, 80, 0.45);
+  pointer-events: none;
+}
+.freeze-banner {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 110px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  padding: 0 16px;
+  text-align: center;
+}
+.freeze-banner[hidden] {
+  display: none;
+}
+.freeze-title {
+  margin: 0;
+  font-family: var(--sans);
+  font-size: clamp(40px, 6vw, 64px);
+  font-weight: 700;
+  text-shadow: 0 2px 16px rgba(0, 0, 0, 0.75);
+}
+.freeze-note {
+  margin: 0;
+  padding: 10px 14px;
+  font-family: var(--sans);
+  font-size: 16px;
+}
+
 /* ---------- reverted (board 5) ---------- */
 
 .reverted {
