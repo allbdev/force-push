@@ -21,7 +21,9 @@
     "size": "tsx tools/size-check.ts",
     "colours": "tsx tools/colour-check.ts",
     "check": "npm run lint && npm run typecheck && npm run test && npm run build && npm run size",
-    "deploy": "npm run build && wrangler deploy"
+    "deploy": "npm run build && wrangler deploy",
+    "test:bots": "BOT_MATCHES=1000 vitest run tests/core/bot.test.ts",
+    "bots": "tsx tools/bots.ts"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
