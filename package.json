@@ -14,7 +14,7 @@
     "preview": "vite preview --port 4174 --strictPort",
     "lint": "eslint . && prettier --check .",
     "format": "prettier --write .",
-    "typecheck": "tsc --noEmit",
+    "typecheck": "tsc --noEmit && tsc --noEmit -p server",
     "test": "vitest run",
     "test:watch": "vitest",
     "e2e": "playwright test",
@@ -23,9 +23,11 @@
     "check": "npm run lint && npm run typecheck && npm run test && npm run build && npm run size",
     "deploy": "npm run build && wrangler deploy",
     "test:bots": "BOT_MATCHES=1000 vitest run tests/core/bot.test.ts",
-    "bots": "tsx tools/bots.ts"
+    "bots": "tsx tools/bots.ts",
+    "server": "npm run build && wrangler dev --port 8787 --var ALLOW_DEV_ORIGINS:1"
   },
   "devDependencies": {
+    "@cloudflare/workers-types": "^5.20261123.1",
     "@eslint/js": "^10.0.1",
     "@fontsource/jetbrains-mono": "^5.3.0",
     "@fontsource/space-grotesk": "^5.3.0",
