@@ -1,0 +1,11 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`rng > gives a known sequence (guards cross-engine drift) 1`] = `
+[
+  716952460,
+  2822794297,
+  1857357124,
+]
+`;
+
+exports[`rng > gives a known sequence (guards cross-engine drift) 2`] = `2952563871`;

@@ -28,3 +28,4 @@ design-captures/
 # Wrangler
 .wrangler/
 .dev.vars
+.claude/worktrees/
