@@ -40,6 +40,7 @@ test("every browser ends a recorded match in the same state as Node", async ({ p
 });
 
 test("a replay link plays the match and ends on the result", async ({ page }) => {
+  test.slow(); // A whole sprint; CI runners draw WebGL in software.
   const errors = await open(page, `/?test=1&speed=20&replay=${recorded()}`);
   await expect(page.getByTestId("timer")).toBeVisible();
   await expect(page.locator(".result-title")).toBeVisible({ timeout: 60_000 });
@@ -54,6 +55,7 @@ test("a broken replay link lands on the landing page with a message", async ({ p
 test("after a match, the biggest push plays again with the close camera and comes back", async ({
   page,
 }) => {
+  test.slow(); // A whole sprint; CI runners draw WebGL in software.
   const errors = await open(page, "/?offline=1&test=1&seed=5&minutes=2&speed=20");
   await expect(page.locator(".result-title")).toBeVisible({ timeout: 60_000 });
   await page.getByTestId("watch-highlight").click();

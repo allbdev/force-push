@@ -34,17 +34,37 @@ test("a bad room code is refused with a message", async ({ page }) => {
 test("an offline match against bots: walk, push, HUD, and a 2-minute sprint to the result", async ({
   page,
 }) => {
-  const errors = await open(page, "/?offline=1&test=1&seed=1758&minutes=2&speed=20");
+  test.slow(); // A whole sprint; CI runners draw WebGL in software.
+  // Real time first, so the walk can't be lost in a sprint that ends before the check.
+  const errors = await open(page, "/?offline=1&test=1&seed=1758&minutes=2");
   await expect(page.getByTestId("timer")).toBeVisible();
   await expect(page.getByTestId("room-code")).toHaveText("offline");
-  const before = await page.evaluate(() => (window as unknown as Hooks).__mc.state()!.players[0]);
-  // Walk right two tiles, then drop a push.
-  await page.evaluate(() => (window as unknown as Hooks).__mc.play([...Array(10).fill(2), 16, 0]));
+  // Let the match settle in (three.js loads in the first moments) before scripting the walk.
   await expect
-    .poll(() => page.evaluate(() => (window as unknown as Hooks).__mc.state()!.players[0]!.x), {
-      timeout: 10_000,
+    .poll(() => page.evaluate(() => (window as unknown as Hooks).__mc.state()!.tick), {
+      timeout: 30_000,
+    })
+    .toBeGreaterThanOrEqual(20);
+  const before = await page.evaluate(() => (window as unknown as Hooks).__mc.state()!.players[0]);
+  // Walk right two tiles, then drop a push. A bot's blast can send the player back to the start
+  // between two polls, so the page keeps the furthest x it has drawn.
+  await page.evaluate(() => {
+    const w = window as unknown as Hooks & { __maxX: number };
+    w.__maxX = -1;
+    const watch = () => {
+      w.__maxX = Math.max(w.__maxX, w.__mc.state()?.players[0]?.x ?? -1);
+      requestAnimationFrame(watch);
+    };
+    watch();
+    w.__mc.play([...Array(10).fill(2), 16, 0]);
+  });
+  await expect
+    .poll(() => page.evaluate(() => (window as unknown as { __maxX: number }).__maxX), {
+      timeout: 15_000,
     })
     .toBeGreaterThan(before!.x);
+  // Then fast-forward to the result.
+  await page.evaluate(() => ((window as unknown as Hooks).__mc.speed = 20));
   await expect(page.getByTestId("result-title").or(page.locator(".result-title"))).toBeVisible({
     timeout: 60_000,
   });
@@ -58,7 +78,8 @@ test("an offline match against bots: walk, push, HUD, and a 2-minute sprint to t
 test("a 1v1 against one bot: close two seats in the offline lobby and play to the result", async ({
   page,
 }) => {
-  const errors = await open(page, "/?test=1&seed=21&speed=20");
+  test.slow(); // A whole sprint; CI runners draw WebGL in software.
+  const errors = await open(page, "/?test=1&seed=21");
   await page.getByTestId("practice").click();
   // Practice opens the offline lobby first, with the host's seat switches.
   await expect(page.getByTestId("start")).toBeVisible();
@@ -77,6 +98,7 @@ test("a 1v1 against one bot: close two seats in the offline lobby and play to th
     (window as unknown as Hooks).__mc.state()!.players.map((p) => p.out),
   );
   expect([outs[1], outs[2]]).toEqual([-1, -1]);
+  await page.evaluate(() => ((window as unknown as Hooks).__mc.speed = 20));
   await expect(page.locator(".result-title")).toBeVisible({ timeout: 60_000 });
   await expect(page.locator(".diff tbody tr")).toHaveCount(2);
   expect(errors).toEqual([]);
@@ -88,7 +110,7 @@ test("watching an all-bot match", async ({ page }) => {
   expect(await page.evaluate(() => (window as unknown as Hooks).__mc.seat())).toBe(-1);
   await expect
     .poll(() => page.evaluate(() => (window as unknown as Hooks).__mc.state()!.tick), {
-      timeout: 10_000,
+      timeout: 30_000,
     })
     .toBeGreaterThan(100);
   expect(errors).toEqual([]);

@@ -182,7 +182,7 @@ export class Hud {
     );
   }
 
-  update(s: GameState, predicted: GameState, info: HudInfo, renderer: ArenaRenderer): void {
+  update(s: GameState, predicted: GameState, info: HudInfo, renderer: ArenaRenderer | null): void {
     // Timer: "code freeze in" once the freeze starts.
     const left = s.endTick - s.tick;
     const frozen = s.freeze && s.tick >= freezeStart(s);
@@ -212,60 +212,67 @@ export class Hud {
     if (info.seat >= 0) setText(this.mine, `${t("hud.you")} ${pct[info.seat]}%`);
     if (info.ping !== null) setText(this.ping, t("hud.ping", { ms: info.ping }));
 
-    // Name tags over the players.
-    s.players.forEach((_, seat) => {
-      const point = renderer.drawn[seat];
-      const tag = this.tags[seat]!;
-      if (!point || !renderer.visible[seat]) {
-        tag.hidden = true;
-        return;
-      }
-      tag.hidden = false;
-      const p = renderer.toScreen(point.x, point.y, 1.15);
-      tag.style.transform = `translate(${Math.round(p.x)}px, ${Math.round(p.y)}px) translate(-50%, -100%)`;
-    });
+    // Without the 3D view (still loading, or no WebGL) there is nothing to pin labels to; the
+    // timer, the territory and the stats above and below still update.
+    if (!renderer) {
+      for (const tag of this.tags) tag.hidden = true;
+      for (const node of this.pool) node.hidden = true;
+    } else {
+      // Name tags over the players.
+      s.players.forEach((_, seat) => {
+        const point = renderer.drawn[seat];
+        const tag = this.tags[seat]!;
+        if (!point || !renderer.visible[seat]) {
+          tag.hidden = true;
+          return;
+        }
+        tag.hidden = false;
+        const p = renderer.toScreen(point.x, point.y, 1.15);
+        tag.style.transform = `translate(${Math.round(p.x)}px, ${Math.round(p.y)}px) translate(-50%, -100%)`;
+      });
 
-    // Floating labels: own pending pushes, recent gains, power-ups on the floor.
-    let used = 0;
-    const label = (text: string, x: number, y: number, h: number, cls: string) => {
-      let node = this.pool[used];
-      if (!node) {
-        node = el("span", {});
-        this.pool.push(node);
-        this.labels.append(node);
+      // Floating labels: own pending pushes, recent gains, power-ups on the floor.
+      let used = 0;
+      const label = (text: string, x: number, y: number, h: number, cls: string) => {
+        let node = this.pool[used];
+        if (!node) {
+          node = el("span", {});
+          this.pool.push(node);
+          this.labels.append(node);
+        }
+        used++;
+        node.hidden = false;
+        if (node.className !== cls) node.className = cls;
+        setText(node, text);
+        const p = renderer.toScreen(x, y, h);
+        node.style.transform = `translate(${Math.round(p.x)}px, ${Math.round(p.y)}px) translate(-50%, -50%)`;
+      };
+      for (const q of predicted.pushes) {
+        if (q.owner !== info.seat) continue;
+        const secs = Math.max(1, Math.ceil(q.fuse / 20));
+        label(t("hud.pushIn", { s: secs }), q.x, q.y, 1.0, "float-label panel-chip");
       }
-      used++;
-      node.hidden = false;
-      if (node.className !== cls) node.className = cls;
-      setText(node, text);
-      const p = renderer.toScreen(x, y, h);
-      node.style.transform = `translate(${Math.round(p.x)}px, ${Math.round(p.y)}px) translate(-50%, -50%)`;
-    };
-    for (const q of predicted.pushes) {
-      if (q.owner !== info.seat) continue;
-      const secs = Math.max(1, Math.ceil(q.fuse / 20));
-      label(t("hud.pushIn", { s: secs }), q.x, q.y, 1.0, "float-label panel-chip");
+      for (const g of renderer.gains) {
+        label(
+          t("hud.gain", { n: g.n, branch: branchName(g.seat) }),
+          g.x,
+          g.y,
+          0.9 + g.age * 0.5,
+          `float-label panel-chip gain-${BRANCHES[g.seat]}`,
+        );
+      }
+      for (let i = 0; i < s.item.length; i++) {
+        if (!s.item[i]) continue;
+        label(
+          powerUpLabel(s.item[i]!),
+          i % s.width,
+          i / s.width - (i % s.width) / s.width + 0.45,
+          0.05,
+          "float-label item-label",
+        );
+      }
+      for (let k = used; k < this.pool.length; k++) this.pool[k]!.hidden = true;
     }
-    for (const g of renderer.gains) {
-      label(
-        t("hud.gain", { n: g.n, branch: branchName(g.seat) }),
-        g.x,
-        g.y,
-        0.9 + g.age * 0.5,
-        `float-label panel-chip gain-${BRANCHES[g.seat]}`,
-      );
-    }
-    for (let i = 0; i < s.item.length; i++) {
-      if (!s.item[i]) continue;
-      label(
-        powerUpLabel(s.item[i]!),
-        i % s.width,
-        i / s.width - (i % s.width) / s.width + 0.45,
-        0.05,
-        "float-label item-label",
-      );
-    }
-    for (let k = used; k < this.pool.length; k++) this.pool[k]!.hidden = true;
 
     // Your pushes and range.
     if (info.seat >= 0) {
