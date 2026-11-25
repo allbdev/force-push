@@ -1,0 +1,53 @@
+{
+  "name": "force-push",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Force Push: territory war in an open-plan office. Your bomb is a git push --force.",
+  "license": "MIT",
+  "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview --port 4174 --strictPort",
+    "lint": "eslint . && prettier --check .",
+    "format": "prettier --write .",
+    "typecheck": "tsc --noEmit && tsc --noEmit -p server",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "e2e": "playwright test",
+    "size": "tsx tools/size-check.ts",
+    "colours": "tsx tools/colour-check.ts",
+    "check": "npm run lint && npm run typecheck && npm run test && npm run build && npm run size",
+    "deploy": "npm run build && wrangler deploy",
+    "test:bots": "BOT_MATCHES=1000 vitest run tests/core/bot.test.ts",
+    "bots": "tsx tools/bots.ts",
+    "server": "npm run build && wrangler dev --ip 0.0.0.0 --port 8787 --var ALLOW_DEV_ORIGINS:1",
+    "designs": "npm run build && tsx tools/designs/capture.ts"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^5.20261123.1",
+    "@eslint/js": "^10.0.1",
+    "@fontsource/jetbrains-mono": "^5.3.0",
+    "@fontsource/space-grotesk": "^5.3.0",
+    "@playwright/test": "^1.65.1",
+    "@types/node": "^26.6.6",
+    "@types/three": "^0.187.0",
+    "eslint": "^10.15.0",
+    "fast-check": "^4.11.0",
+    "globals": "^17.14.0",
+    "jsdom": "^31.0.1",
+    "prettier": "^3.10.1",
+    "tsx": "^4.23.15",
+    "typescript": "^6.0.3",
+    "typescript-eslint": "^8.73.0",
+    "vite": "^8.3.8",
+    "vitest": "^5.1.1",
+    "wrangler": "^4.166.0"
+  },
+  "dependencies": {
+    "three": "^0.187.0"
+  }
+}

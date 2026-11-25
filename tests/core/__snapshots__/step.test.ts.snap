@@ -1,0 +1,3 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`step > hashes to a known value for a recorded run (cross-engine guard) 1`] = `3899455397`;

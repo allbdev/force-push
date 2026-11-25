@@ -1,0 +1,23 @@
+// Cloudflare Worker for Force Push (GAME_PLAN.md D6): serves the built client as static assets
+// and runs one Durable Object per room. Only /api/* reaches the Worker code.
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "force-push",
+  "main": "server/worker.ts",
+  "compatibility_date": "2026-11-01",
+  "assets": {
+    "directory": "./dist",
+    "binding": "ASSETS",
+    "not_found_handling": "single-page-application",
+    "run_worker_first": ["/api/*"],
+  },
+  "durable_objects": {
+    "bindings": [{ "name": "ROOMS", "class_name": "RoomObject" }],
+  },
+  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["RoomObject"] }],
+  "ratelimits": [
+    { "name": "JOIN_LIMIT", "namespace_id": "1758", "simple": { "limit": 30, "period": 60 } },
+  ],
+  "routes": [{ "pattern": "force-push.vinicius-albuquerque.com.br", "custom_domain": true }],
+  "observability": { "enabled": true },
+}

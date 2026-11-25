@@ -13,7 +13,7 @@ Repo: https://github.com/allbdev/force-push (public, MIT). Live at https://force
 
 ## Design canvas (two-way sync, strict)
 
-The mockups live on the claude.ai design canvas **"Force Push — Mockups"**: https://claude.ai/artifact/CvekFxFmsvEAGt3Rfwiu6H (pages: Screens, Mobile, Characters & items, Art direction). `designs/*.jpg` are exports of its boards; `designs/README.md` maps each board to its file.
+The mockups live on the claude.ai design canvas **"Force Push — Mockups"**: https://claude.ai/artifact/CvekFxFmsvEAGt3Rfwiu6H (pages: Screens, Mobile, Characters & items, Art direction, Floor patterns). `designs/*.jpg` are exports of its boards; `designs/README.md` maps each board to its file.
 
 **Claude owns the designs.** The game, the docs and the canvas must always agree:
 

@@ -23,7 +23,7 @@ A turf war in an open-plan office. Four branches, one floor, three minutes. Blas
 | D4 | Simulation | A pure, deterministic `step(state, inputs) → state` at **20 ticks per second**, **integers only** | The server and the client run the same code; replays are an input log; no floats means no cross-browser drift |
 | D5 | Networking | One authoritative room per match over WebSocket. Clients send inputs, predict their own movement and reconcile with the server's ticks (§11) | Server authority stops cheating; prediction hides 100–150 ms |
 | D6 | Room host | A plain WebSocket room running our own `step`, not Colyseus (Colyseus brings its own state sync, which we don't need). **Cloudflare** (decided 22 Nov 2026): one Worker serves the built client as static assets and runs one **Durable Object per room**, on `force-push.vinicius-albuquerque.com.br` | One object per room is exactly the model; client and socket share an origin; no server to keep alive. The room stays a class with a transport, so the host is still swappable |
-| D7 | Bots | From the first version, written against the same `step`; empty seats become bots | Empty lobbies are the biggest risk; a match can start with one human |
+| D7 | Bots | From the first version, written against the same `step`; empty seats become bots, unless the host **closes** them (23 Nov 2026: a 1v1 or a three-way match, online or offline) | Empty lobbies are the biggest risk; a match can start with one human. Two friends still want a straight 1v1 |
 | D8 | Text | **English by default, PT-BR toggle** | Same as the sibling games |
 | D9 | Session | Sprints of 3 minutes (2 and 5 in the lobby); a room plays several in a row | It is opened from a link |
 | D10 | Money | None. No ads, no accounts. The server keeps a room only while it is open; nothing is stored about players | Keeps it outside any compliance work |
@@ -38,7 +38,7 @@ Open decisions are in `TODO_FOR_YOU.md`.
 
 ## 3. The loop
 
-1. Open a link or type a room code. 2 to 4 players, each a branch: `main`, `feature`, `hotfix`, `dev`. Empty seats are bots.
+1. Open a link or type a room code. 2 to 4 players, each a branch: `main`, `feature`, `hotfix`, `dev`. Empty seats are bots, or closed for a smaller match.
 2. Walk the grid and drop a force-push. Three seconds later it blasts in a cross and paints every tile it reaches in your colour.
 3. Blasts break legacy boxes (which may hide a power-up) and stop at server racks.
 4. Caught in a blast: you are **reverted**. You lose 4 seconds and 3 tiles near where you fell, and respawn at your desk. Nobody is eliminated.
@@ -88,7 +88,7 @@ All numbers are first drafts, in ticks (20 per second) in the code.
 
 ### 6.1 The grid
 
-- **Open Space:** 13 × 11 tiles inside the walls. Server racks stand on every other tile (x and y both odd: 30 racks), leaving 113 floor tiles. Legacy boxes ("LEGACY · NÃO MEXER") cover about 60% of the free floor, drawn from the match seed, except each desk's corner and the two tiles next to it.
+- **Open Space:** 13 × 11 tiles inside the walls. Server racks stand on every other tile (x and y both odd: 30 racks), leaving 113 floor tiles. Legacy boxes ("LEGACY · NÃO MEXER") cover about 60% of the free floor, drawn from the match seed, except the tiles within two steps of each desk (so the first push has a safe corner to hide behind): 56 boxes, 17 of them hiding a power-up.
 - **Desks:** one per branch, in the four corners. You start and respawn there.
 - **Racks** never break and stop blasts. **Boxes** break when a blast reaches them; 30% hide a power-up (seeded).
 
@@ -128,28 +128,30 @@ Sit on a white plate with a coloured ring so they read on painted floor (board "
 
 ### 6.5 Scoring: the diff
 
-- **`+`** counts tiles your blasts turned to your colour (repainting your own tile doesn't count). **`−`** counts tiles of yours that turned to someone else's colour (or froze).
+- **`+`** counts tiles that turned to your colour: painted by your blasts, or handed to you as someone's revert penalty (repainting your own tile doesn't count). **`−`** counts tiles of yours that turned to anything else: someone's colour, grey (your own revert penalty) or frozen.
 - So **`+` minus `−` is exactly the tiles you own at the end**. A test holds the core to it.
 - The HUD and the result show each branch's share **of the painted tiles** (grey tiles count for nobody), so the four shares add up to 100%.
 - Example (board 7): `main +212 −181` (31 tiles, 31%), `dev +190 −163` (27%), `hotfix +171 −148` (23%), `feature +140 −121` (19%).
 
 ### 6.6 Code freeze (second version)
 
-In the last 30 s the outer ring closes tile by tile, clockwise from the north-west corner, one tile every ~0.75 s. A closed tile is a wall and counts for nobody (`−` for its owner). Standing on a tile as it closes reverts you; respawn moves to the nearest open floor tile to your desk. The timer turns red and reads "code freeze in" (board 6).
+On in every room. In the last 30 s the outer ring closes tile by tile, clockwise from the north-west corner, one tile every 13 ticks (0.65 s) so the 44-tile ring closes just before the end. A closed tile is a wall and counts for nobody (`−` for its owner). Standing on a tile as it closes reverts you; respawn moves to the nearest open floor tile to your desk. Anyone halfway into a tile as it closes is stopped. The timer turns red and reads "code freeze in", the screen gets a red border, and the "Code freeze" banner shows for four seconds (board 6).
 
 ### 6.7 Bots
 
 - They run on the same `step`, from the room's seed, so a bot plays the same on the server and in a replay.
 - Each tick a bot reads a **danger map** (tiles a pending blast will reach, and when), then picks a goal by score: boxes in reach, tiles that aren't its colour, power-ups, escape. It drops a push only if it can reach a safe tile before the fuse ends.
-- One difficulty in the first version. A bot plays as `bot` in the lobby ("joins if nobody comes").
+- One difficulty in the first version. A bot plays as `bot` in the lobby ("joins if nobody comes"). A closed seat has no bot (§7).
 
 ## 7. Rooms
 
-- **Code:** three letters and four digits, `FRI-1758`, from an alphabet without look-alikes (no I/O/0/1 in the letters). The link is the game URL with `?room=FRI-1758`.
-- **Lobby** (board 2): the four seats with the branch, name and state ("ready", "choosing headphones…", "joins if nobody comes"), the map, the sprint length (2 / 3 / 5 min), **Start sprint** (the room's creator), **Leave**. A mock terminal reads the room's status (`3 of 4 ready. Waiting for Rafa.`).
+- **Code:** three letters and four digits, `FRI-1758`, generated without I or O in the letters so nobody reads them as 1 and 0 (typed codes accept any letters, so the board's `FRI-1758` is valid). The link is the game URL with `?room=FRI-1758`.
+- **Lobby** (board 2): the four seats with the branch, name and state ("ready", "choosing headphones…", "joins if nobody comes"), the map with **Change map** (opens board 8), the sprint length (2 / 3 / 5 min, remembered), **Start sprint** (the host: the room's creator, or the next person if they leave; the host always counts as ready), **I'm ready** for everyone else, **Leave**. A mock terminal reads the room's status (`3 of 4 ready. Waiting for Rafa.`). The note beside **Leave**: "Empty seats become bots. Close one for a smaller fight."
 - **Seats:** the first four to join get `main`, `feature`, `hotfix`, `dev` in that order. A room can start with one human; empty seats become bots.
+- **Closed seats** (23 Nov 2026, boards 2 and 2b): in the lobby the host has a **bot / closed** switch on every empty seat. A closed seat reads "closed · nobody plays here", dashed and greyed, to everyone. Nobody plays it, not even a bot: it has no developer, no desk, no chip in the territory bar, no share and no row on the result, and shares are split between the open seats. Two closed seats make a 1v1 (two people, or you against one bot offline); one makes a three-way. At least two seats stay open, so closing is off on the last one. Nobody is seated in a closed seat: a newcomer takes an open one, or watches. Closed seats stay through the result and rematches until the host reopens them; they can't change mid-sprint. **Play against bots** opens the offline lobby first, with the same switch. The maps stay the same size.
 - **Names:** optional, up to 12 characters, letters, digits, space, `_` and `-` (any script), checked on the server. Shown to the other players only; nothing is kept after the room closes.
-- **Drop out mid-sprint:** a bot takes your seat until you come back with the same link.
+- **Drop out mid-sprint:** a bot takes your seat until you come back with the same link (the browser keeps a per-room token; the server hands the seat back and sends a snapshot).
+- **Full room:** a fifth person (up to 12 connections) watches as a spectator.
 - **Rematch:** the same room, a new seed. The room closes 5 minutes after the last player leaves.
 
 ## 8. Maps
@@ -162,7 +164,7 @@ Maps are JSON in `src/content/maps/`, validated when loaded: size, racks, desks,
 | 2 | Data Center | Data Center | More racks, narrow aisles. One good push paints half the map | Second |
 | 3 | Rooftop Happy Hour | Happy Hour no Terraço | Late afternoon. Wind pushes each force-push one tile, one second after it's dropped, if the tile is free | Second |
 
-**The daily map** (second version): drawn from the date (the player's local midnight) from the same pieces; the same for everyone. Bots must finish a match on it without getting stuck, or the generator re-rolls.
+**The daily map** (second version): drawn from the date (the player's local midnight) from the same pieces (grid, rack rows, an open plaza, or scattered extra racks with four-way symmetry; box density 45–65%; one day in four is windy), id `daily-YYYYMMDD`, the same for everyone. Bots play 40 seconds on it; if one gets stuck the generator re-rolls. Picked from the map select screen.
 
 ```jsonc
 {
@@ -170,7 +172,7 @@ Maps are JSON in `src/content/maps/`, validated when loaded: size, racks, desks,
   "size": [13, 11],                     // tiles inside the walls; x right, y down
   "racks": "grid",                      // or an explicit list of [x, y]
   "desks": { "main": [0, 0], "feature": [12, 0], "hotfix": [0, 10], "dev": [12, 10] },
-  "boxes": { "density": 0.6, "clear": 2 },  // around each desk
+  "boxes": { "density": 0.6, "clear": 2 },  // no boxes within 2 steps of a desk
   "drops": { "rate": 0.3, "weights": { "coffee": 4, "duck": 2, "stackOverflow": 4 } },
   "wind": null                          // rooftop: { "dir": "east", "delay": 20 }
 }
@@ -185,8 +187,8 @@ The validator is hand-written (no schema library without asking) and rejects a d
 - **Result** (board 7): "Pull request #1758 · merged", "**main won** the sprint", one row per branch (tag, name, `+` and `−`, share), **Rematch**, **Change map**, **Share**, and highlights: biggest push, most reverted, legacy destroyed ("Nobody will miss it.").
 - **Share line** (draft):
   `Force Push · room FRI-1758` / `main won: +212 −181 (31%)` / `42 force-pushes · 2 reverts` / `force-push.vinicius-albuquerque.com.br`. PT-BR: `Force Push · sala FRI-1758` / `main venceu: +212 −181 (31%)`. Line 2 is the winner; line 3 is the sharer's own match.
-- **Highlight replay** (second version, board 4): after the result, the biggest push again with the camera down close ("force-push", `$ git push --force origin dev`, the tiles gained and lost). During play the camera never moves in.
-- **Replays** (second version): the match is its seed, map, version and input log, so a replay is a file or a link that runs `step` again. Untrusted input: length cap, strict parse, polite failure.
+- **Highlight replay** (second version, board 4): **Watch the biggest push** on the result plays the five seconds around it again with the camera down close ("force-push", `$ git push --force origin dev`, the tiles gained, the tiles lost per branch, boxes broken), then returns to the result. During play the camera never moves in.
+- **Replays** (second version): the match is its seed, map, version and input log, so a replay is a link (`?replay=…`, **Copy replay link** on the result) that runs `step` again: four seats to 20 bits per tick, run-length encoded, base64url; a 3-minute match fits in a link. The flags byte carries the freeze and the closed seats (links from before closed seats read as a full table). Untrusted input: length cap, strict parse, polite failure.
 
 ## 10. Look
 
@@ -199,6 +201,7 @@ A desk-toy office seen from above, with a code editor laid over it. (Canvas page
 - **Camera:** fixed three-quarter view of the whole map on wide screens. Phones (portrait): it follows you. It moves in close only in the highlight replay.
 - Against the other games: Dig to Japan is round cartoon, Um Buraco Só a photo, Cartório paper, Park the Cart a flyer. This one is a toy diorama plus a terminal.
 - Colour never carries meaning alone: every tag carries the branch name, and every diff has its sign.
+- **Floor patterns.** The colour-blind check (`npm run colours`, roadmap task 9) found hotfix and dev too close under deuteranopia (ΔE00 8.6, with grey near both), so each branch's painted tiles also carry a pattern (canvas page "Floor patterns").
 
 **Tokens**
 
@@ -217,6 +220,7 @@ A desk-toy office seen from above, with a code editor laid over it. (Canvas page
 | feature | `#ff9a1f` | Branch |
 | hotfix | `#ff4f93` | Branch |
 | dev | `#19c3a6` | Branch (text on any branch colour `#0d0e12`) |
+| floor | `#8c919c` | An unpainted floor tile (nobody's) |
 
 | Font | Use |
 |---|---|
@@ -243,7 +247,8 @@ Both are OFL and self-hosted in the build (no runtime calls to Google Fonts).
   - The client keeps the last confirmed state, runs ahead with its own inputs applied at once (prediction), and when the server's inputs for a tick arrive it rolls back and re-runs. The state is a few hundred bytes of integers, so re-running a handful of ticks is cheap.
   - Other players are drawn from the confirmed state, interpolated, so they never jump.
   - The three-second fuse and tile movement tolerate 100–150 ms; the HUD shows ping.
-- **The server** only relays and validates: message size and rate caps, inputs that are five bits, names that pass the rule in §7, room codes that can't be guessed by scanning (rate-limited joins). It stores nothing.
+- **The wire** (`src/core/codec.ts`): an input is 6 bytes (type, `seq`, five bits); a tick is 25 bytes for four seats (tick, four input bytes, four acks); a hash 9 bytes; everything else strict JSON. Clients cap at 256 bytes per message.
+- **The server** (`server/`, a Cloudflare Worker with a Durable Object per room) only relays and validates: message size cap, a token bucket per connection (extra inputs are dropped quietly, other floods are struck and then disconnected), inputs that are five bits, names that pass the rule in §7, room codes that can't be guessed by scanning (joins rate-limited per address), and only the site's own pages may connect (Origin check). It stores nothing; a room is forgotten five minutes after it empties.
 - **Rendering** is three.js for the arena (instanced tiles, one directional light with shadows, models built by code); the HUD, lobby, result and menus are DOM (real `<button>`s, readable text, focusable).
 
 ## 12. Stack and conventions

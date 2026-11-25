@@ -1,14 +1,23 @@
 # What I need from you
 
 > Things only you can do (decisions, accounts, people). Claude keeps this list current while working; newest items at the top of each section.
-> Last updated: 22 Nov 2026. Repo, domain, host and the Stack Overflow name decided; the three stale board exports replaced. Phase 0 (setup) in progress.
+> Last updated: 23 Nov 2026. The game is built (phases 0–7, see `ROADMAP.md`) on the local branch `feat/core-match`, in small commits. **Nothing after the first commit has been pushed**: the project rules say push only when asked, and every push needs a security audit first.
 
 ## To do now
 
-- [ ] **Cloudflare deploy access** (roadmap task 5). For CI to deploy the Worker, add two repository secrets on GitHub (Settings → Secrets and variables → Actions): `CLOUDFLARE_API_TOKEN` (a token from the "Edit Cloudflare Workers" template, scoped to your account and the `vinicius-albuquerque.com.br` zone) and `CLOUDFLARE_ACCOUNT_ID`. Until then the deploy job is skipped and CI only checks.
-- [ ] **Cloudflare free-tier limits.** I haven't checked the current limits for Workers and Durable Objects (requests, duration, WebSocket messages). Please check, or tell me to. Needed by Phase 3, not before.
-- [ ] **Read `GAME_PLAN.md` §6 (the rules).** Every number there is a first draft I picked so the mockups add up: fuse 3 s, range 2, 2 pushes carried, 4 s out after a revert, 3 penalty tiles, coffee 10 s, 30% of boxes hide a power-up. Tell me anything that feels wrong before Phase 1.
-- [ ] **Stale JPG export:** `designs/07-Result.jpg` shows `[SEU DOMÍNIO]` at the end of the share line; the canvas board now shows the real domain (22 Nov 2026). Please export board *7 · Result* again when convenient.
+- [ ] **Push and review the work.** All of it is on the local branch `feat/core-match` (based on `main` after the first commit). Say "push it" and I'll run the security audit, push the branch and open a PR into `main`; or push it yourself: `git push -u origin feat/core-match`.
+- [ ] **Cloudflare deploy access** (roadmap tasks 5 and 35). For CI to deploy the Worker (client and rooms), add two repository secrets on GitHub (Settings → Secrets and variables → Actions): `CLOUDFLARE_API_TOKEN` (the "Edit Cloudflare Workers" template, scoped to your account and the `vinicius-albuquerque.com.br` zone) and `CLOUDFLARE_ACCOUNT_ID`. Until then the deploy job is skipped. Or deploy by hand once: `npx wrangler login`, then `npm run deploy`. The Worker uses a Durable Object (`RoomObject`, SQLite-backed class, free plan friendly) and the Workers rate-limiting binding (`JOIN_LIMIT`); Cloudflare creates the custom-domain DNS record on first deploy.
+- [ ] **Cloudflare free-tier limits.** I haven't checked the current limits for Workers, Durable Objects (requests, duration, WebSocket messages) and the rate-limiting binding. Please check, or tell me to. A room sends 20 small messages a second to each player while a sprint runs and nothing when empty.
+- [ ] **Try a 1v1** (closed seats, added 23 Nov 2026). In the lobby, the host switches empty seats between *bot* and *closed*: close two for a 1v1 with a friend, or with one bot from "Play against bots" (which now opens the offline lobby first). Does Open Space feel too big for two? If so, small 1v1 maps are a later idea.
+- [ ] **Play it.** `npm run dev` (offline: "Play against bots") or `npm run server` then open http://localhost:8787 in two windows for an online room. `npm run server` also listens on your network, so other computers on the same Wi-Fi can join at `http://<this machine's IP>:8787`.
+  - *Kill test* (end of Phase 1): three 3-minute matches against three bots. Do you want a fourth? Did a comeback happen in the last 20 seconds?
+  - *Slice test* (end of Phase 2): on desktop and on a phone. Does the result make you want a rematch?
+  - *Online test* (end of Phase 3): two people on two phones over 4G, plus two bots, once it's deployed.
+- [ ] **Read `GAME_PLAN.md` §6 (the rules).** Every number is a first draft: fuse 3 s, range 2, 2 pushes carried, 4 s out after a revert, 3 penalty tiles, coffee 10 s, 30% of boxes hide a power-up, the code freeze on in every room. Tell me anything that feels wrong.
+- [ ] **Stale JPG exports:** the canvas was updated to match the game on 22 Nov 2026, so these exports are behind it: `designs/01-Main.jpg` (name field, "Jogar contra bots"), `02-Lobby.jpg` ("Trocar mapa"; since 23 Nov also the bot / fechada switch on the empty seat and the new note), `07-Result.jpg` (domain in the share line; "Ver o maior push" and "Copiar link do replay"), `11-Items.jpg` (rebase), and the new *Floor patterns* board (export as `designs/13-Floor.jpg`). I can't export boards myself. `npm run designs` captures every screen from the real game into `design-captures/` (PNG + JPG, both locales) if you'd rather replace the screen mockups with captures (roadmap task 53; your call, no downgrades).
+- [ ] **A flaky test to keep an eye on:** the online e2e (two browsers play a whole sprint through `wrangler dev`) failed once in three local runs after the art merge: one client never showed the result within 200 s. It passed the other two times; it now gets one retry. If CI shows it failing, tell me and I'll dig in.
+- [ ] **One-line canvas fix I wasn't allowed to publish:** on board *1 · Landing* the name field has `maxlength="16"`; the game caps names at 12. Change it to 12 (or tell me to retry).
+- [ ] **Look at the boards I changed** on the canvas: *2 · Lobby* (the seat switch) and the new *2b · Lobby: 1v1*, a capture from the game (23 Nov); before that *1 · Landing*, *7 · Result*, *Items and blocks* (rebase) and the new page *Floor patterns*.
 
 ## Decisions (quick)
 
@@ -17,11 +26,13 @@
 - [x] ~~**Domain.**~~ `force-push.vinicius-albuquerque.com.br` (22 Nov 2026), served by the Worker as a custom domain (Cloudflare creates the DNS record on first deploy).
 - [x] ~~**"Stack Overflow" as a power-up name.**~~ Kept as a nod (22 Nov 2026).
 - [x] ~~**Name.**~~ **Force Push** since 22 Nov 2026 (was Merge Conflict, which a Global Game Jam game already uses). I'll check the new name on itch.io and the stores before launch. (Roadmap task 58)
-- [ ] **Phones, portrait or landscape?** The board shows portrait with a following camera. Park the Cart switched to landscape after you played it on a phone. I'm keeping portrait as drawn and will ask again after the phone check in Phase 2.
+- [ ] **Phones, portrait or landscape?** Built portrait with a following camera, as the board shows. Park the Cart switched to landscape after you played it on a phone; tell me after you try this one.
+- [ ] **Code freeze in every room?** It's on for every sprint (the second-version rule). Say if you'd rather make it a lobby option.
 
 ## Art
 
-- [ ] **Who makes the art.** My plan: I build it in code (every model is a bevelled box, which suits code well), like Park the Cart. The renders on the canvas are the target. If you'd rather use authored models (for example the Deploy na Sexta kit, if it exists as files), tell me where they are.
+- [x] ~~**Who makes the art.**~~ Built in code (every model a bevelled box), checked against the canvas renders.
+- [ ] **The character kit shared with Deploy na Sexta** (roadmap task 51): the developers live in `src/ui/models/developer.ts`. Tell me where Deploy na Sexta's code is and I'll make it one module both games use.
 
 ## Design canvas
 
@@ -29,7 +40,6 @@
 
 ## Playtesting (needs people)
 
-- [ ] **Kill test** (end of Phase 1): three 3-minute matches against three bots in the sandbox. Do you want a fourth?
-- [ ] **Slice test** (end of Phase 2): an offline match on desktop and on a phone, in 3D. Does the result make you want a rematch?
-- [ ] **Online test** (end of Phase 3): two people on two phones over 4G, plus two bots.
+- [ ] **Kill, slice and online tests:** see "Play it" above.
+- [ ] **Performance on a mid-range phone** (roadmap task 40): 60 fps and interactive in under 2 s over 4G. The bundle is about 170 KB gzipped of the 250 KB budget, three.js included; I can't measure a real phone.
 - [ ] **Playtests** (roadmap task 56): 5 sessions of 4 players, at least 2 on phones and 2 English speakers.
