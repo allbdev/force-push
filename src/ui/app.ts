@@ -62,6 +62,8 @@ type TestHooks = {
   play(inputs: readonly number[]): void;
   state(): GameState | null;
   paused: boolean;
+  /** Ticks per real tick, 1 to 20 (same clamp as `&speed=`). */
+  speed: number;
   seat(): number;
   screen(): ScreenKind;
   hash(): number;
@@ -84,7 +86,7 @@ export class App {
   private readonly store = browserStore();
   private readonly options: AppOptions;
   private readonly test: boolean;
-  private readonly speed: number;
+  private speed: number;
   private readonly reducedMotion: boolean;
   private readonly touch = hasTouch();
   private session: Session | null = null;
@@ -611,7 +613,10 @@ export class App {
         let steps = 0;
         // Offline the room catches up after a stall; online the server keeps its own clock and a
         // burst of stale inputs helps nobody.
-        const maxSteps = session.offline ? 40 : 3;
+        // (`&speed=` for tests can need more per frame on a slow machine.)
+        const maxSteps = session.offline
+          ? Math.max(40, Math.ceil((250 * this.speed) / TICK_MS))
+          : 3;
         while (this.acc >= TICK_MS && steps < maxSteps) {
           this.acc -= TICK_MS;
           steps++;
@@ -671,6 +676,12 @@ export class App {
       },
       set paused(v: boolean) {
         app.paused = v;
+      },
+      get speed() {
+        return app.speed;
+      },
+      set speed(v: number) {
+        app.speed = Math.min(20, Math.max(1, Math.trunc(v) || 1));
       },
       seat: () => this.session?.client.seat ?? -1,
       screen: () => this.screen,
