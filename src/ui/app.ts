@@ -649,8 +649,10 @@ export class App {
           closeUp: this.highlight ? { x: this.highlight.x, y: this.highlight.y } : null,
         };
         this.renderer.draw(view, dt, s.tick + view.alpha);
-        this.hud?.update(s, client.predicted, this.hudInfo(), this.renderer);
       }
+      // The HUD doesn't wait for the 3D view: it updates even while three.js loads or without WebGL.
+      if (s && client.predicted && (this.screen === "match" || this.screen === "result"))
+        this.hud?.update(s, client.predicted, this.hudInfo(), this.renderer);
     }
     if (this.hero && !this.reducedMotion) this.hero.draw(now / 1000);
     requestAnimationFrame((t2) => this.frame(t2));
